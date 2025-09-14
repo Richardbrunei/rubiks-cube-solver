@@ -44,6 +44,19 @@ python rubiks_cube_color_detector.py
 - **ESC**: Exit program
 - Follow on-screen instructions for each cube face
 
+## Project Structure
+
+```
+├── rubiks_cube_color_detector.py  # Main program entry point
+├── config.py                      # Configuration and constants
+├── color_detection.py             # Color detection algorithms
+├── image_processing.py            # Image enhancement utilities
+├── camera_interface.py            # Camera and user interface
+├── cube_validation.py             # Cube validation and fixing
+├── cube_display.py                # Display and printing functions
+└── README.md                      # This file
+```
+
 ## How It Works
 
 1. **Color Detection**: Uses HSV color ranges for robust color identification
