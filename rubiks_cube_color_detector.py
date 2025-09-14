@@ -1350,6 +1350,7 @@ def main():
         if validation_result['valid']:
             print("\n🎉 SUCCESS! Cube is valid and ready for solving")
             print(f"Final cube string: {cube_string}")
+            print(kociemba.solve(cube_string))
         else:
             print("\n❌ IMPOSSIBLE CUBE - Cannot be solved in current state")
             print("Possible causes: Color detection errors, physical cube issues, or impossible configuration")
@@ -1362,7 +1363,6 @@ def main():
     # Display cube net
     if len(cube_state) == 54:
         print_cube_net(cube_state)
-    print(kociemba.solve(cube_string))
 
 # Program entry point
 if __name__ == "__main__":
