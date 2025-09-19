@@ -100,7 +100,7 @@ def main():
         print("CUBE FIXING PROCESS")
         print("="*60)
         
-        fixed_cube_state, face_mapping, rotations_applied, final_score, is_valid = fix_cube_complete(cube_state)
+        fixed_cube_state, face_mapping, rotations_applied, is_valid = fix_cube_complete(cube_state)
         
         # Show what was done
         if face_mapping:
@@ -126,7 +126,7 @@ def main():
         cube_state_string = str(cube_state)
         
         status = "✅" if is_valid else "⚠️"
-        print(f"{status} Final result: Score {final_score}/100 {'(VALID CUBE!)' if is_valid else '(needs improvement)'}")
+        print(f"{status} Final result: {'VALID CUBE!' if is_valid else 'Could not create valid cube - best attempt returned'}")
         
         print("="*60)
     

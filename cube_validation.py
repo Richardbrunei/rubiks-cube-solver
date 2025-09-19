@@ -197,41 +197,19 @@ def is_cube_theoretically_valid(cube_state):
     return len(errors) == 0, errors
 
 
-def calculate_cube_score(cube_state):
+def count_validation_errors(cube_state):
     """
-    Calculate a score (0-100) for how close the cube is to being valid.
+    Count the number of validation errors in a cube state.
+    Used to find the "least bad" configuration when no perfect solution exists.
     
     Returns:
-        int: Score from 0-100, where 100 means perfectly valid
+        int: Number of validation errors (lower is better)
     """
     if len(cube_state) != 54:
-        return 0
+        return 999  # Very high error count for invalid length
     
-    score = 0
-    
-    # Color count scoring (60 points max)
-    color_counts = {}
-    for color in cube_state:
-        if color not in ["Unknown", "X"]:
-            color_counts[color] = color_counts.get(color, 0) + 1
-    
-    expected_colors = ["White", "Red", "Green", "Yellow", "Orange", "Blue"]
-    for color in expected_colors:
-        count = color_counts.get(color, 0)
-        # Perfect score for exactly 9, decreasing score for deviation
-        color_score = max(0, 10 - abs(9 - count))
-        score += color_score
-    
-    # Basic validation bonus (40 points)
     validation_result = validate_cube_state(cube_state)
-    if validation_result['valid']:
-        score += 40
-    else:
-        # Partial credit based on number of errors
-        error_penalty = min(40, len(validation_result['errors']) * 5)
-        score += max(0, 40 - error_penalty)
-    
-    return min(100, score)
+    return len(validation_result['errors'])
 
 
 def rotate_face_90(face):
@@ -409,7 +387,7 @@ def fix_cube_complete(cube_state):
     face_rotations = [get_all_face_rotations(face) for face in faces]
     rotation_degrees = [0, 90, 180, 270]
     
-    best_score = -1
+    best_error_count = 999
     best_cube_state = reordered_cube
     best_rotations = [0] * 6
     
@@ -441,17 +419,14 @@ def fix_cube_complete(cube_state):
                                 # Found perfect solution!
                                 best_cube_state = test_cube
                                 best_rotations = [rotation_degrees[r] for r in rotations]
-                                best_score = 100
                                 print(f"✅ Found valid cube after {tested_combinations} combinations!")
                                 # Return immediately - we found the solution
-                                final_validation = validate_cube_state(best_cube_state)
-                                is_valid_solution = final_validation['valid']
-                                return best_cube_state, face_mapping, best_rotations, best_score, is_valid_solution
+                                return best_cube_state, face_mapping, best_rotations, True
                             
-                            # Track best score for non-perfect solutions
-                            score = calculate_cube_score(test_cube)
-                            if score > best_score:
-                                best_score = score
+                            # Track configuration with fewest errors for non-perfect solutions
+                            error_count = count_validation_errors(test_cube)
+                            if error_count < best_error_count:
+                                best_error_count = error_count
                                 best_cube_state = test_cube
                                 best_rotations = [rotation_degrees[r] for r in rotations]
                             
@@ -460,9 +435,7 @@ def fix_cube_complete(cube_state):
                                 print(f"   Tested {tested_combinations}/4096 combinations...")
     
     print(f"⚠️  Tested all {tested_combinations} combinations - no perfect solution found")
+    print(f"   Best attempt has {best_error_count} validation errors")
     
-    # Final validation
-    final_validation = validate_cube_state(best_cube_state)
-    is_valid_solution = final_validation['valid']
-    
-    return best_cube_state, face_mapping, best_rotations, best_score, is_valid_solution
+    # Return best attempt (not valid, but closest we could get)
+    return best_cube_state, face_mapping, best_rotations, False
