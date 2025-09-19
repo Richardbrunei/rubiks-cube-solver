@@ -54,6 +54,40 @@ def brighten_image(image, brightness=25):
     return brightened
 
 
+def adaptive_brighten_image(image, base_brightness=25):
+    """
+    Adaptively brighten image based on overall brightness level.
+    Applies more aggressive brightening to very dark images.
+    
+    Args:
+        image: Input image
+        base_brightness: Base brightness adjustment
+    
+    Returns:
+        numpy.ndarray: Adaptively brightened image
+    """
+    # Calculate average brightness
+    avg_brightness = np.mean(image)
+    
+    # Adaptive brightness adjustment
+    if avg_brightness < 60:
+        # Very dark image - apply strong brightening
+        brightness = base_brightness + 40
+        alpha = 1.2  # Also increase contrast slightly
+    elif avg_brightness < 100:
+        # Moderately dark - apply medium brightening
+        brightness = base_brightness + 20
+        alpha = 1.1
+    else:
+        # Normal brightness - use base settings
+        brightness = base_brightness
+        alpha = 1.0
+    
+    # Apply adaptive enhancement
+    brightened = cv2.convertScaleAbs(image, alpha=alpha, beta=brightness)
+    return brightened
+
+
 def prepare_frame(frame, target_size=(600, 600), brightness=40):
     """
     Prepare camera frame for processing: crop to square, resize, enhance.

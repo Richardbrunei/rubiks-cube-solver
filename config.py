@@ -22,16 +22,16 @@ COLOR_RANGES = {
     },
     "Red": {
         # Red spans across 0° in HSV color wheel, so we need two ranges
-        "lower1": np.array([0, 120, 70]),    # Red range 1: 0-10 degrees
-        "upper1": np.array([10, 255, 255]),
-        "lower2": np.array([170, 120, 70]),  # Red range 2: 170-180 degrees
+        "lower1": np.array([0, 120, 60]),    # Red range 1: 0-8 degrees, lower brightness threshold
+        "upper1": np.array([8, 255, 255]),
+        "lower2": np.array([172, 120, 60]),  # Red range 2: 172-180 degrees, lower brightness threshold
         "upper2": np.array([180, 255, 255]),
-        "backup_bgr": np.array([0, 0, 200])  # Pure red in BGR
+        "backup_bgr": np.array([0, 0, 180])  # Darker red for low-light comparison
     },
     "Green": {
-        "lower": np.array([40, 40, 40]),     # Green hue range: 40-80 degrees
-        "upper": np.array([80, 255, 255]),
-        "backup_bgr": np.array([0, 255, 0])  # Pure green in BGR
+        "lower": np.array([45, 60, 60]),     # Green hue range: 45-75 degrees, higher saturation and brightness
+        "upper": np.array([75, 255, 255]),   # Narrower range to avoid confusion
+        "backup_bgr": np.array([0, 180, 0])  # Darker green for low-light comparison
     },
     "Yellow": {
         "lower": np.array([20, 100, 100]),   # Yellow hue range: 20-30 degrees
@@ -39,9 +39,9 @@ COLOR_RANGES = {
         "backup_bgr": np.array([0, 255, 255])  # Pure yellow in BGR
     },
     "Orange": {
-        "lower": np.array([10, 100, 100]),   # Orange hue range: 10-20 degrees
-        "upper": np.array([20, 255, 255]),   # Between red and yellow
-        "backup_bgr": np.array([0, 165, 255])  # Orange in BGR
+        "lower": np.array([8, 120, 100]),    # Orange hue range: 8-18 degrees
+        "upper": np.array([18, 255, 255]),   # Between red and yellow, higher saturation
+        "backup_bgr": np.array([0, 140, 255])  # More distinct orange in BGR
     },
     "Blue": {
         "lower": np.array([100, 150, 0]),    # Blue hue range: 100-130 degrees

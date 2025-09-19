@@ -5,7 +5,7 @@ Camera interface and user interaction functions for Rubik's Cube Color Detection
 import cv2
 from config import COLOR_TO_CUBE, CAMERA_RESOLUTION, GRID_STEP, DETECTION_SIZE, BRIGHTNESS_ADJUSTMENT, PERFORMANCE_FRAME_SKIP
 from color_detection import detect_color_advanced, get_dominant_color
-from image_processing import correct_white_balance, brighten_image
+from image_processing import correct_white_balance, brighten_image, adaptive_brighten_image
 
 
 def show_live_preview(cam, face_name):
@@ -53,7 +53,7 @@ def show_live_preview(cam, face_name):
         
         # Step 3: Apply image enhancements
         frame = correct_white_balance(frame)
-        frame = brighten_image(frame, brightness=BRIGHTNESS_ADJUSTMENT)
+        frame = adaptive_brighten_image(frame, base_brightness=BRIGHTNESS_ADJUSTMENT)
         
         # Step 4: Define 3x3 grid parameters
         start_x = (CAMERA_RESOLUTION[0] - 2 * GRID_STEP) // 2
@@ -133,7 +133,7 @@ def capture_face(cam):
     
     mirrored_frame = cv2.resize(mirrored_frame, CAMERA_RESOLUTION)
     mirrored_frame = correct_white_balance(mirrored_frame)
-    mirrored_frame = brighten_image(mirrored_frame, brightness=BRIGHTNESS_ADJUSTMENT)
+    mirrored_frame = adaptive_brighten_image(mirrored_frame, base_brightness=BRIGHTNESS_ADJUSTMENT)
     
     # Detect colors
     colors = []
@@ -160,7 +160,7 @@ def capture_face(cam):
     
     display_frame = cv2.resize(display_frame, CAMERA_RESOLUTION)
     display_frame = correct_white_balance(display_frame)
-    display_frame = brighten_image(display_frame, brightness=BRIGHTNESS_ADJUSTMENT)
+    display_frame = adaptive_brighten_image(display_frame, base_brightness=BRIGHTNESS_ADJUSTMENT)
     
     # Draw visualization on unmirrored display
     for row in range(3):

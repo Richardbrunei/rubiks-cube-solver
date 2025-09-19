@@ -136,10 +136,10 @@ def main():
         print("FINAL CUBE VALIDATION")
         print("="*60)
         
-        validation_result = validate_cube_state(cube_state)
-        print_validation_results(validation_result)
+        is_valid = validate_cube_state(cube_state)
+        print_validation_results(is_valid)
         
-        if validation_result['valid']:
+        if is_valid:
             print("\n🎉 SUCCESS! Cube is valid and ready for solving")
             print(f"Final cube string: {cube_string}")
             print(kociemba.solve(cube_string))

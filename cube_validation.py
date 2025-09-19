@@ -6,162 +6,273 @@ import numpy as np
 from config import COLOR_TO_CUBE
 
 
-def validate_cube_state(cube_state):
+def validate_cube_state(cube_state, debug=False):
     """
-    Validate if the detected cube configuration is valid according to Rubik's cube rules.
+    Validate cube state with clear step-by-step validation and debugging output.
     
-    Checks:
-    1. Exactly 9 stickers of each of the 6 colors
-    2. All 12 edges are distinct and geometrically possible
-    3. All 8 corners are distinct and geometrically possible
+    Face order: White(0-8), Red(9-17), Green(18-26), Yellow(27-35), Orange(36-44), Blue(45-53)
+    
+    Each face layout with indices:
+    White face:    Red face:      Green face:    Yellow face:   Orange face:   Blue face:
+    0  1  2        9  10 11      18 19 20       27 28 29       36 37 38       45 46 47
+    3  4  5        12 13 14      21 22 23       30 31 32       39 40 41       48 49 50
+    6  7  8        15 16 17      24 25 26       33 34 35       42 43 44       51 52 53
+    
+    Center positions: White(4), Red(13), Green(22), Yellow(31), Orange(40), Blue(49)
+    Edge positions: 1,3,5,7 for each face
+    Corner positions: 0,2,6,8 for each face
     
     Args:
         cube_state: List of 54 color names in face order [White, Red, Green, Yellow, Orange, Blue]
+        debug: If True, print debugging information
     
     Returns:
-        dict: Validation results with 'valid' boolean and 'errors' list
+        bool: True if valid, False if invalid
     """
-    validation_result = {
-        'valid': True,
-        'errors': [],
-        'warnings': []
-    }
+    if debug:
+        print("="*60)
+        print("CUBE VALIDATION DEBUG")
+        print("="*60)
     
+    # Step 1: Check cube length
     if len(cube_state) != 54:
-        validation_result['valid'] = False
-        validation_result['errors'].append(f"Invalid cube state length: {len(cube_state)} (expected 54)")
-        return validation_result
+        if debug:
+            print(f"❌ Invalid length: {len(cube_state)} (expected 54)")
+        return False
     
-    # Step 1: Check color count (must be exactly 9 of each color)
+    if debug:
+        print(f"✅ Length check: {len(cube_state)} stickers")
+    
+    # Step 2: Check color counts
     color_counts = {}
     for color in cube_state:
         if color == "Unknown" or color == "X":
-            validation_result['valid'] = False
-            validation_result['errors'].append("Cube contains undetected colors (Unknown/X)")
-            continue
+            if debug:
+                print(f"❌ Contains unknown colors")
+            return False
         color_counts[color] = color_counts.get(color, 0) + 1
     
     expected_colors = ["White", "Red", "Green", "Yellow", "Orange", "Blue"]
+    
+    if debug:
+        print(f"\nColor counts:")
+        for color in expected_colors:
+            count = color_counts.get(color, 0)
+            status = "✅" if count == 9 else "❌"
+            print(f"  {status} {color}: {count}")
+    
+    # Validate color counts
     for color in expected_colors:
         count = color_counts.get(color, 0)
         if count != 9:
-            validation_result['valid'] = False
-            validation_result['errors'].append(f"Invalid {color} count: {count} (expected 9)")
+            if debug:
+                print(f"❌ Invalid {color} count: {count} (expected 9)")
+            return False
     
     # Check for unexpected colors
     for color in color_counts:
         if color not in expected_colors:
-            validation_result['valid'] = False
-            validation_result['errors'].append(f"Unexpected color detected: {color}")
+            if debug:
+                print(f"❌ Unexpected color: {color}")
+            return False
     
-    # If basic color validation fails, don't continue with geometric checks
-    if not validation_result['valid']:
-        return validation_result
-    
-    # Step 2: Extract and validate edges (12 edges, each with 2 stickers)
-    edges = [
-        # White face edges (top face)
-        (cube_state[1], cube_state[46]),   # White top - Blue top
-        (cube_state[3], cube_state[37]),   # White left - Orange top  
-        (cube_state[5], cube_state[19]),   # White right - Red top
-        (cube_state[7], cube_state[28]),   # White bottom - Green top
-        
-        # Middle layer edges
-        (cube_state[12], cube_state[21]),  # Red left - Green right
-        (cube_state[14], cube_state[39]),  # Red right - Orange left
-        (cube_state[23], cube_state[41]),  # Green left - Orange right
-        (cube_state[25], cube_state[48]),  # Green right - Blue left
-        
-        # Yellow face edges (bottom face)
-        (cube_state[30], cube_state[16]),  # Yellow top - Red bottom
-        (cube_state[32], cube_state[43]),  # Yellow right - Orange bottom
-        (cube_state[34], cube_state[52]),  # Yellow bottom - Blue bottom
-        (cube_state[36], cube_state[25]),  # Yellow left - Green bottom
+    # Step 3: Check center pieces
+    centers = [
+        cube_state[4],   # White center
+        cube_state[13],  # Red center
+        cube_state[22],  # Green center
+        cube_state[31],  # Yellow center
+        cube_state[40],  # Orange center
+        cube_state[49],  # Blue center
     ]
     
-    # Define impossible edge combinations
-    impossible_edges = set()
+    if debug:
+        print(f"\nCenter pieces:")
+        face_names = ["White", "Red", "Green", "Yellow", "Orange", "Blue"]
+        for i, (expected, actual) in enumerate(zip(face_names, centers)):
+            status = "✅" if expected == actual else "❌"
+            print(f"  {status} {face_names[i]} face center: {actual}")
     
-    # Same color edges are impossible
-    for color in expected_colors:
-        impossible_edges.add((color, color))
+    # Validate centers (each face should have its own color as center)
+    for i, (expected, actual) in enumerate(zip(expected_colors, centers)):
+        if expected != actual:
+            if debug:
+                print(f"❌ Wrong center: {expected} face has {actual} center")
+            return False
     
-    # Opposite color edges are impossible
+    # Step 4: Extract and validate edges
+    edges = extract_edges(cube_state)
+    
+    if debug:
+        print(f"\nEdges array ({len(edges)} edges):")
+        for i, (color1, color2) in enumerate(edges):
+            print(f"  {i+1:2d}. {color1} - {color2}")
+    
+    edges_valid = validate_edges(edges, debug)
+    if not edges_valid:
+        return False
+    
+    # Step 5: Extract and validate corners
+    corners = extract_corners(cube_state)
+    
+    if debug:
+        print(f"\nCorners array ({len(corners)} corners):")
+        for i, (color1, color2, color3) in enumerate(corners):
+            print(f"  {i+1}. {color1} - {color2} - {color3}")
+    
+    corners_valid = validate_corners(corners, debug)
+    if not corners_valid:
+        return False
+    
+    if debug:
+        print(f"\n✅ CUBE IS VALID!")
+    
+    return True
+
+
+def extract_edges(cube_state):
+    """
+    Extract all 12 edges from cube state with correct position mapping.
+    
+    In a standard cube net layout:
+         U U U
+         U U U
+         U U U
+    L L L F F F R R R B B B
+    L L L F F F R R R B B B  
+    L L L F F F R R R B B B
+         D D D
+         D D D
+         D D D
+    
+    Face order: White(0-8), Red(9-17), Green(18-26), Yellow(27-35), Orange(36-44), Blue(45-53)
+    """
+    
+    edges = [
+        # Top layer edges (White face connects to adjacent faces)
+        (cube_state[1], cube_state[46]),   # White-top connects to Blue-top (1-46)
+        (cube_state[3], cube_state[37]),   # White-left connects to Orange-top (3-37)
+        (cube_state[5], cube_state[10]),   # White-right connects to Red-top (5-10)
+        (cube_state[7], cube_state[19]),   # White-bottom connects to Green-top (7-19)
+        
+        # Middle layer edges (connecting side faces in cycle: Red→Green→Orange→Blue→Red)
+        (cube_state[12], cube_state[23]),  # Red-left connects to Green-right (12-23)
+        (cube_state[50], cube_state[39]),  # Blue-right connects to Orange-left (50-39)
+        (cube_state[21], cube_state[41]),  # Green-left connects to Orange-right (21-41)
+        (cube_state[14], cube_state[48]),  # red-right connects to Blue-left (14-48)
+        
+        # Bottom layer edges (Yellow face connects to adjacent faces)
+        (cube_state[28], cube_state[16]),  # Yellow-top connects to Red-bottom (28-16)
+        (cube_state[30], cube_state[24]),  # Yellow-left connects to Green-bottom (30-24)
+        (cube_state[32], cube_state[43]),  # Yellow-right connects to Orange-bottom (32-43)
+        (cube_state[34], cube_state[52]),  # Yellow-bottom connects to Blue-bottom (34-52)
+    ]
+    
+    return edges
+
+
+def extract_corners(cube_state):
+    """Extract all 8 corners from cube state"""
+    # Each corner connects 3 faces at positions 0,2,6,8 of each face
+    
+    corners = [
+        # White face corners
+        (cube_state[0], cube_state[36], cube_state[47]),  # White-topleft, Orange-topleft, Blue-topright
+        (cube_state[2], cube_state[18], cube_state[9]),   # White-topright, Green-topleft, Red-topleft
+        (cube_state[6], cube_state[15], cube_state[38]),  # White-bottomleft, Red-bottomleft, Orange-topright
+        (cube_state[8], cube_state[20], cube_state[45]),  # White-bottomright, Green-topright, Blue-topleft
+        
+        # Yellow face corners
+        (cube_state[27], cube_state[17], cube_state[26]), # Yellow-topleft, Red-bottomright, Green-bottomright
+        (cube_state[29], cube_state[24], cube_state[44]), # Yellow-topright, Green-bottomleft, Orange-bottomright
+        (cube_state[33], cube_state[42], cube_state[11]), # Yellow-bottomleft, Orange-bottomleft, Red-topright
+        (cube_state[35], cube_state[53], cube_state[51]), # Yellow-bottomright, Blue-bottomright, Blue-bottomleft
+    ]
+    
+    return corners
+
+
+def validate_edges(edges, debug=False):
+    """Validate that edges are geometrically possible and unique"""
+    
+    if debug:
+        print(f"\nEdge validation:")
+    
+    # Define impossible edge combinations (opposite faces can't share an edge)
     opposite_pairs = [("White", "Yellow"), ("Red", "Orange"), ("Green", "Blue")]
+    impossible_edges = set()
     for color1, color2 in opposite_pairs:
         impossible_edges.add((color1, color2))
         impossible_edges.add((color2, color1))
     
-    # Check edges for validity and uniqueness
+    # Check each edge
     seen_edges = set()
     for i, (color1, color2) in enumerate(edges):
+        # Check for impossible edges (opposite colors)
+        if (color1, color2) in impossible_edges:
+            if debug:
+                print(f"  ❌ Edge {i+1}: {color1}-{color2} (impossible - opposite colors)")
+            return False
+        
+        # Check for duplicate edges
         edge = tuple(sorted([color1, color2]))
-        
-        # Check if edge is impossible
-        if (color1, color2) in impossible_edges or (color2, color1) in impossible_edges:
-            validation_result['valid'] = False
-            validation_result['errors'].append(f"Impossible edge {i+1}: {color1}-{color2}")
-        
-        # Check if edge is duplicate
         if edge in seen_edges:
-            validation_result['valid'] = False
-            validation_result['errors'].append(f"Duplicate edge: {color1}-{color2}")
-        else:
-            seen_edges.add(edge)
+            if debug:
+                print(f"  ❌ Edge {i+1}: {color1}-{color2} (duplicate)")
+            return False
+        seen_edges.add(edge)
     
-    # Step 3: Extract and validate corners (8 corners, each with 3 stickers)
-    corners = [
-        # White face corners
-        (cube_state[0], cube_state[36], cube_state[47]),  # White-Orange-Blue
-        (cube_state[2], cube_state[18], cube_state[10]),  # White-Green-Red
-        (cube_state[6], cube_state[9], cube_state[38]),   # White-Red-Orange
-        (cube_state[8], cube_state[45], cube_state[20]),  # White-Blue-Green
-        
-        # Yellow face corners  
-        (cube_state[27], cube_state[15], cube_state[24]), # Yellow-Red-Green
-        (cube_state[29], cube_state[26], cube_state[42]), # Yellow-Green-Orange
-        (cube_state[33], cube_state[44], cube_state[17]), # Yellow-Orange-Blue
-        (cube_state[35], cube_state[51], cube_state[11]), # Yellow-Blue-Red
-    ]
+    # Must have exactly 12 unique edges
+    if len(seen_edges) != 12:
+        if debug:
+            print(f"  ❌ Expected 12 unique edges, found {len(seen_edges)}")
+        return False
     
-    # Check corners for validity and uniqueness
+    if debug:
+        print(f"  ✅ All {len(edges)} edges are valid and unique")
+    
+    return True
+
+
+def validate_corners(corners, debug=False):
+    """Validate that corners are geometrically possible and unique"""
+    
+    if debug:
+        print(f"\nCorner validation:")
+    
+    # Define impossible corner combinations
+    opposite_pairs = [("White", "Yellow"), ("Red", "Orange"), ("Green", "Blue")]
+    
+    # Check each corner
     seen_corners = set()
     for i, (color1, color2, color3) in enumerate(corners):
         corner_colors = {color1, color2, color3}
         
-        # Check for impossible same-color corners
-        if len(set((color1, color2, color3))) < 3:
-            validation_result['valid'] = False
-            validation_result['errors'].append(f"Corner {i+1} has repeated colors: {color1}-{color2}-{color3}")
-            continue
+        # Check for opposite colors in same corner (impossible in physical cube)
+        for opp1, opp2 in opposite_pairs:
+            if opp1 in corner_colors and opp2 in corner_colors:
+                if debug:
+                    print(f"  ❌ Corner {i+1}: {color1}-{color2}-{color3} (impossible - opposite colors)")
+                return False
         
-        # Check for impossible opposite-color combinations in corners
-        for color_a, color_b in opposite_pairs:
-            if color_a in corner_colors and color_b in corner_colors:
-                validation_result['valid'] = False
-                validation_result['errors'].append(f"Corner {i+1} has opposite colors: {color1}-{color2}-{color3}")
-                break
-        
-        # Normalize corner for duplicate checking (sort colors)
-        normalized_corner = tuple(sorted([color1, color2, color3]))
-        
-        # Check if corner is duplicate
-        if normalized_corner in seen_corners:
-            validation_result['valid'] = False
-            validation_result['errors'].append(f"Duplicate corner: {color1}-{color2}-{color3}")
-        else:
-            seen_corners.add(normalized_corner)
+        # Check for duplicate corners
+        corner = tuple(sorted([color1, color2, color3]))
+        if corner in seen_corners:
+            if debug:
+                print(f"  ❌ Corner {i+1}: {color1}-{color2}-{color3} (duplicate)")
+            return False
+        seen_corners.add(corner)
     
-    # Step 4: Check that we have exactly 12 unique edges and 8 unique corners
-    if len(seen_edges) != 12:
-        validation_result['valid'] = False
-        validation_result['errors'].append(f"Expected 12 unique edges, found {len(seen_edges)}")
-    
+    # Must have exactly 8 unique corners
     if len(seen_corners) != 8:
-        validation_result['valid'] = False
-        validation_result['errors'].append(f"Expected 8 unique corners, found {len(seen_corners)}")
+        if debug:
+            print(f"  ❌ Expected 8 unique corners, found {len(seen_corners)}")
+        return False
     
-    return validation_result
+    if debug:
+        print(f"  ✅ All {len(corners)} corners are valid and unique")
+    
+    return True
 
 
 def is_cube_theoretically_valid(cube_state):
@@ -208,8 +319,9 @@ def count_validation_errors(cube_state):
     if len(cube_state) != 54:
         return 999  # Very high error count for invalid length
     
-    validation_result = validate_cube_state(cube_state)
-    return len(validation_result['errors'])
+    # Simple scoring: valid = 0 errors, invalid = 1 error
+    # For more granular scoring, we could check individual aspects
+    return 0 if validate_cube_state(cube_state) else 1
 
 
 def rotate_face_90(face):
@@ -344,28 +456,24 @@ def fix_cube_face_order(cube_state):
 
 def fix_cube_complete(cube_state):
     """
-    Complete cube fixing process: reorder faces by centers, then find optimal rotations.
-    
-    Two-stage process:
-    1. Reorder faces based on center pieces (W=Up, Y=Down, etc.)
-    2. Try all rotation combinations to find a valid cube configuration
+    Simplified cube fixing: try all 4096 rotation combinations and return first valid one.
     
     Args:
         cube_state: List of 54 colors in capture order
     
     Returns:
-        tuple: (fixed_cube_state, face_reordering, rotations_applied, final_score, is_valid)
+        tuple: (fixed_cube_state, face_mapping, rotations_applied, is_valid)
     """
     if len(cube_state) != 54:
-        return cube_state, {}, [0] * 6, 0, False
+        return cube_state, {}, [0] * 6, False
     
     print("🔄 Stage 1: Reordering faces by center pieces...")
     
     # Stage 1: Reorder faces based on center pieces
     reordered_cube, face_mapping = fix_cube_face_order(cube_state)
     
-    # Stage 2: Find optimal face rotations
-    print("🔄 Stage 2: Finding optimal face orientations...")
+    # Stage 2: Try all rotation combinations
+    print("🔄 Stage 2: Testing all rotation combinations...")
     
     # Check if cube can theoretically be made valid
     is_theoretically_valid_result, theoretical_errors = is_cube_theoretically_valid(reordered_cube)
@@ -374,7 +482,7 @@ def fix_cube_complete(cube_state):
         print("❌ Cannot create valid cube - fundamental issues detected:")
         for error in theoretical_errors:
             print(f"   • {error}")
-        return reordered_cube, face_mapping, [0] * 6, 0, False
+        return reordered_cube, face_mapping, [0] * 6, False
     
     # Extract faces from reordered cube
     faces = []
@@ -387,21 +495,15 @@ def fix_cube_complete(cube_state):
     face_rotations = [get_all_face_rotations(face) for face in faces]
     rotation_degrees = [0, 90, 180, 270]
     
-    best_error_count = 999
-    best_cube_state = reordered_cube
-    best_rotations = [0] * 6
-    
-    # Try ALL possible rotation combinations systematically
-    # 6 faces × 4 rotations each = 4^6 = 4096 total combinations
     tested_combinations = 0
     
-    # Nested loops for all combinations: for white in range(4): for red in range(4): etc.
-    for white_rot in range(4):      # White face: 0°, 90°, 180°, 270°
-        for red_rot in range(4):    # Red face: 0°, 90°, 180°, 270°
-            for green_rot in range(4):  # Green face: 0°, 90°, 180°, 270°
-                for yellow_rot in range(4):  # Yellow face: 0°, 90°, 180°, 270°
-                    for orange_rot in range(4):  # Orange face: 0°, 90°, 180°, 270°
-                        for blue_rot in range(4):  # Blue face: 0°, 90°, 180°, 270°
+    # Try all 4096 combinations - return first valid one
+    for white_rot in range(4):
+        for red_rot in range(4):
+            for green_rot in range(4):
+                for yellow_rot in range(4):
+                    for orange_rot in range(4):
+                        for blue_rot in range(4):
                             
                             # Create test cube with this rotation combination
                             test_cube = []
@@ -414,28 +516,17 @@ def fix_cube_complete(cube_state):
                             tested_combinations += 1
                             
                             # Check if this combination creates a valid cube
-                            validation_result = validate_cube_state(test_cube)
-                            if validation_result['valid']:
-                                # Found perfect solution!
-                                best_cube_state = test_cube
-                                best_rotations = [rotation_degrees[r] for r in rotations]
+                            if validate_cube_state(test_cube):
+                                # Found valid solution!
+                                applied_rotations = [rotation_degrees[r] for r in rotations]
                                 print(f"✅ Found valid cube after {tested_combinations} combinations!")
-                                # Return immediately - we found the solution
-                                return best_cube_state, face_mapping, best_rotations, True
+                                return test_cube, face_mapping, applied_rotations, True
                             
-                            # Track configuration with fewest errors for non-perfect solutions
-                            error_count = count_validation_errors(test_cube)
-                            if error_count < best_error_count:
-                                best_error_count = error_count
-                                best_cube_state = test_cube
-                                best_rotations = [rotation_degrees[r] for r in rotations]
-                            
-                            # Progress indicator for long searches
+                            # Progress indicator
                             if tested_combinations % 1000 == 0:
                                 print(f"   Tested {tested_combinations}/4096 combinations...")
     
-    print(f"⚠️  Tested all {tested_combinations} combinations - no perfect solution found")
-    print(f"   Best attempt has {best_error_count} validation errors")
+    print(f"⚠️  Tested all {tested_combinations} combinations - no valid solution found")
     
-    # Return best attempt (not valid, but closest we could get)
-    return best_cube_state, face_mapping, best_rotations, False
+    # Return original reordered cube if no solution found
+    return reordered_cube, face_mapping, [0] * 6, False

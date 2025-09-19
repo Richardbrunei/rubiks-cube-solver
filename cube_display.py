@@ -80,35 +80,27 @@ def print_cube_net(cube_state):
     print("="*50)
 
 
-def print_validation_results(validation_result):
+def print_validation_results(is_valid):
     """
     Print cube validation results in a user-friendly format.
     
     Args:
-        validation_result: Dictionary from validate_cube_state()
+        is_valid: Boolean result from validate_cube_state()
     """
     print("\n" + "="*50)
     print("CUBE VALIDATION RESULTS")
     print("="*50)
     
-    if validation_result['valid']:
+    if is_valid:
         print("✅ CUBE IS VALID!")
         print("The detected cube configuration follows Rubik's cube rules.")
+        print("\n🎉 Perfect! Cube is ready for solving.")
     else:
         print("❌ CUBE IS INVALID!")
         print("The detected cube configuration has errors.")
-    
-    if validation_result['errors']:
-        print(f"\n🚫 ERRORS ({len(validation_result['errors'])}):")
-        for i, error in enumerate(validation_result['errors'], 1):
-            print(f"  {i}. {error}")
-    
-    if validation_result['warnings']:
-        print(f"\n⚠️  WARNINGS ({len(validation_result['warnings'])}):")
-        for i, warning in enumerate(validation_result['warnings'], 1):
-            print(f"  {i}. {warning}")
-    
-    if not validation_result['errors'] and not validation_result['warnings']:
-        print("\n🎉 Perfect detection! No issues found.")
+        print("This could be due to:")
+        print("  • Incorrect color detection")
+        print("  • Physical cube assembly issues")
+        print("  • Impossible cube configuration")
     
     print("="*50)
