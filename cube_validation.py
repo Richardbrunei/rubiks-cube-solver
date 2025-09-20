@@ -157,14 +157,14 @@ def extract_edges(cube_state):
         
         # Middle layer edges (connecting side faces in cycle: Red→Green→Orange→Blue→Red)
         (cube_state[12], cube_state[23]),  # Red-left connects to Green-right (12-23)
-        (cube_state[50], cube_state[39]),  # Blue-right connects to Orange-left (50-39)
+        (cube_state[50], cube_state[39]),  # Blue-right connects to Orange-left (50-39) (this has not been removed yet)
         (cube_state[21], cube_state[41]),  # Green-left connects to Orange-right (21-41)
         (cube_state[14], cube_state[48]),  # red-right connects to Blue-left (14-48)
         
         # Bottom layer edges (Yellow face connects to adjacent faces)
-        (cube_state[28], cube_state[16]),  # Yellow-top connects to Red-bottom (28-16)
-        (cube_state[30], cube_state[24]),  # Yellow-left connects to Green-bottom (30-24)
-        (cube_state[32], cube_state[43]),  # Yellow-right connects to Orange-bottom (32-43)
+        (cube_state[28], cube_state[25]),  # Yellow-top connects to green-bottom (28-16)
+        (cube_state[30], cube_state[43]),  # Yellow-left connects to orange-bottom (30-24)
+        (cube_state[32], cube_state[16]),  # Yellow-right connects to red-bottom (32-43)
         (cube_state[34], cube_state[52]),  # Yellow-bottom connects to Blue-bottom (34-52)
     ]
     
@@ -178,15 +178,15 @@ def extract_corners(cube_state):
     corners = [
         # White face corners
         (cube_state[0], cube_state[36], cube_state[47]),  # White-topleft, Orange-topleft, Blue-topright
-        (cube_state[2], cube_state[18], cube_state[9]),   # White-topright, Green-topleft, Red-topleft
-        (cube_state[6], cube_state[15], cube_state[38]),  # White-bottomleft, Red-bottomleft, Orange-topright
-        (cube_state[8], cube_state[20], cube_state[45]),  # White-bottomright, Green-topright, Blue-topleft
+        (cube_state[2], cube_state[45], cube_state[11]),  # White-topright, Blue-topleft, Red-topright
+        (cube_state[6], cube_state[38], cube_state[18]),  # White-bottomleft, Orange-topright, Green-topleft
+        (cube_state[8], cube_state[20], cube_state[9]),   # White-bottomright, Green-topright, Red-topleft
         
         # Yellow face corners
-        (cube_state[27], cube_state[17], cube_state[26]), # Yellow-topleft, Red-bottomright, Green-bottomright
-        (cube_state[29], cube_state[24], cube_state[44]), # Yellow-topright, Green-bottomleft, Orange-bottomright
-        (cube_state[33], cube_state[42], cube_state[11]), # Yellow-bottomleft, Orange-bottomleft, Red-topright
-        (cube_state[35], cube_state[53], cube_state[51]), # Yellow-bottomright, Blue-bottomright, Blue-bottomleft
+        (cube_state[27], cube_state[24], cube_state[44]), # Yellow-topleft, Green-bottomleft, Orange-bottomright
+        (cube_state[29], cube_state[26], cube_state[15]), # Yellow-topright, Green-bottomright, Red-bottomleft
+        (cube_state[33], cube_state[42], cube_state[53]), # Yellow-bottomleft, Orange-bottomleft, Blue-bottomright
+        (cube_state[35], cube_state[51], cube_state[17]), # Yellow-bottomright, Blue-bottomleft, Red-bottomright
     ]
     
     return corners
@@ -208,6 +208,12 @@ def validate_edges(edges, debug=False):
     # Check each edge
     seen_edges = set()
     for i, (color1, color2) in enumerate(edges):
+        # Check for same color edges (impossible)
+        if color1 == color2:
+            if debug:
+                print(f"  ❌ Edge {i+1}: {color1}-{color2} (impossible - same color)")
+            return False
+        
         # Check for impossible edges (opposite colors)
         if (color1, color2) in impossible_edges:
             if debug:
@@ -247,6 +253,12 @@ def validate_corners(corners, debug=False):
     seen_corners = set()
     for i, (color1, color2, color3) in enumerate(corners):
         corner_colors = {color1, color2, color3}
+        
+        # Check for repeated colors in corner (impossible - each corner must have 3 different colors)
+        if len(corner_colors) < 3:
+            if debug:
+                print(f"  ❌ Corner {i+1}: {color1}-{color2}-{color3} (impossible - repeated colors)")
+            return False
         
         # Check for opposite colors in same corner (impossible in physical cube)
         for opp1, opp2 in opposite_pairs:
