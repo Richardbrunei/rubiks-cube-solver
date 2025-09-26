@@ -13,7 +13,7 @@ Features:
 
 Author: Richard and AI Assistant (Kiro)
 """
-#This is just a test
+
 import cv2
 import kociemba
 
