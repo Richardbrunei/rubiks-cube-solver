@@ -1,0 +1,314 @@
+================================================================================
+RUBIK'S CUBE COLOR DETECTION SYSTEM - API DOCUMENTATION
+================================================================================
+
+This document describes the key functions most likely to be imported and used
+by other programs.
+
+================================================================================
+CAMERA_INTERFACE.PY - Camera and User Interaction Functions
+================================================================================
+
+1. capture_face(cam)
+   Description: Capture and analyze one cube face, returning detected colors.
+                Captures from a 3x3 grid of detection areas on the processed
+                camera frame.
+   
+   Capture Specifications:
+     - Frame Processing:
+       • Input frame is mirrored horizontally (for natural interaction)
+       • Cropped to square aspect ratio (centered)
+       • Resized to 600x600 pixels (CAMERA_RESOLUTION)
+       • White balance corrected
+       • Adaptive brightness enhancement applied
+     
+     - Detection Grid:
+       • 3x3 grid centered on frame
+       • Grid spacing: 100 pixels (GRID_STEP)
+       • Total grid size: 300x300 pixels
+       • Grid position: Centered at (200, 200) to (500, 500)
+     
+     - Detection Areas:
+       • 9 detection squares (one per sticker)
+       • Each square: 40x40 pixels (DETECTION_SIZE * 2)
+       • Centered at grid intersections
+       • Positions (row, col):
+         [0,0] [0,1] [0,2]
+         [1,0] [1,1] [1,2]
+         [2,0] [2,1] [2,2]
+     
+     - Color Detection:
+       • Extracts 40x40 pixel patch from each position
+       • Uses detect_color_advanced() for accurate detection
+       • Returns colors in unmirrored order (compensates for flip)
+   
+   Parameters:
+     - cam: OpenCV VideoCapture object
+   
+   Returns:
+     - list: 9 color names in reading order (left-to-right, top-to-bottom)
+             Format: ["White", "Red", "Green", ...] or ["X", ...] on error
+
+================================================================================
+COLOR_DETECTION.PY - Color Detection Functions
+================================================================================
+
+2. detect_color_advanced(patch, use_fast=False)
+   Description: Advanced color detection using HSV ranges and multiple fallback
+                methods. Main function for detecting Rubik's cube colors.
+                Automatically uses detect_color_low_brightness() when V < 80.
+   Parameters:
+     - patch: numpy.ndarray - Image patch to analyze
+     - use_fast: bool - If True, uses simple averaging instead of KMeans
+                        (default: False)
+   Returns:
+     - String: Detected color name or "Unknown"
+
+3. detect_color_low_brightness(dominant_bgr, h, s, v)
+   Description: Special color detection for low brightness situations where
+                HSV hue becomes unreliable (V < 80). Uses BGR channel ratios
+                combined with HSV context to distinguish colors, especially
+                red vs green which are commonly confused in low light.
+   
+   Detection Method:
+     - Calculates BGR ratios (normalized channel values)
+     - Uses hue ranges for confirmation
+     - Applies color-specific thresholds:
+       • White: High total brightness, low color variation
+       • Red: Red channel > 45%, hue near 0° or 180°
+       • Green: Green channel > 45%, hue 35-85°
+       • Blue: Blue channel > 45%, hue 90-140°
+       • Orange: Red > 35%, green > 25%, hue 5-25°
+       • Yellow: Red & green > 35%, similar values, hue 15-35°
+     - Falls back to BGR distance if no match found
+   
+   Parameters:
+     - dominant_bgr: numpy.ndarray - BGR color values [B, G, R]
+     - h: int - Hue value (0-180) for context
+     - s: int - Saturation value (0-255) for context
+     - v: int - Value/brightness (0-255) for context
+   Returns:
+     - String: Detected color name ("White", "Red", "Green", "Yellow",
+               "Orange", "Blue", or "Unknown")
+
+4. get_dominant_color(patch, k=2)
+   Description: Accurate dominant color extraction using KMeans clustering.
+   Parameters:
+     - patch: numpy.ndarray - Image patch to analyze
+     - k: int - Number of color clusters to find (default: 2)
+   Returns:
+     - numpy.ndarray: Dominant BGR color [B, G, R]
+
+================================================================================
+CONFIG.PY - Configuration Constants
+================================================================================
+
+5. COLOR_TO_CUBE
+   Description: Standard Rubik's cube notation mapping. Maps color names to
+                single-letter cube notation.
+   Type: dict
+   Mapping: White→U, Red→R, Green→F, Yellow→D, Orange→L, Blue→B
+
+6. Configuration Constants (config.py)
+   Description: Adjustable parameters that affect capture behavior.
+   
+   CAMERA_RESOLUTION = (600, 600)
+     • Processed frame size in pixels
+     • Affects: Grid positioning, detection accuracy
+     • Larger = more detail, slower processing
+   
+   GRID_STEP = 100
+     • Distance between detection points in pixels
+     • Affects: Grid spacing, total grid size
+     • Formula: Total grid size = GRID_STEP * 2
+   
+   DETECTION_SIZE = 20
+     • Radius of detection square in pixels
+     • Affects: Sample area size (actual size = DETECTION_SIZE * 2)
+     • Larger = more averaging, less precision
+   
+   BRIGHTNESS_ADJUSTMENT = 40
+     • Base brightness boost value (0-100)
+     • Affects: Image brightness, color detection in low light
+     • Higher = brighter, may overexpose in good lighting
+   
+   PERFORMANCE_FRAME_SKIP = 5
+     • Number of frames to skip between color detections
+     • Affects: Live preview smoothness vs detection frequency
+     • Higher = smoother video, less frequent color updates
+
+================================================================================
+CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
+================================================================================
+
+7. validate_cube_state(cube_state, debug=False)
+   Description: Comprehensive cube state validation with 8-step verification.
+                Uses advanced solvability checks based on Rubik's cube theory.
+   
+   Validation Steps:
+     1. Length check (must be 54 stickers)
+     2. Color counts (each color must appear exactly 9 times)
+     3. Center pieces (each face must have correct center color)
+     4. Edge validation (12 unique edges, no impossible combinations)
+     5. Corner validation (8 unique corners, no impossible combinations)
+     6. Corner rotations (sum must be divisible by 3)
+     7. Edge parity (flipped edges count must be even)
+     8. Permutation parity (total swaps must be even)
+   
+   Parameters:
+     - cube_state: list - 54 color names in face order
+     - debug: bool - If True, print debugging information (default: False)
+   Returns:
+     - bool: True if valid and solvable, False if invalid
+
+8. validate_corner_rotations(cube_state, debug=False)
+   Description: Validate corner rotations using white/yellow face method.
+                Each corner has a rotation value (0, 1, or -1) based on
+                white/yellow position. Sum must be divisible by 3.
+   
+   Rotation Values:
+     - 0: White/Yellow on correct face (no rotation)
+     - 1: Clockwise rotation
+     - -1: Counter-clockwise rotation
+   
+   Parameters:
+     - cube_state: list - 54 color names in face order
+     - debug: bool - If True, print debugging information (default: False)
+   Returns:
+     - bool: True if corner rotations are valid
+
+9. validate_edge_parity(cube_state, debug=False)
+   Description: Validate edge parity by checking edge orientations.
+                Counts flipped edges using orientation rules:
+                - U/D edges: White/Yellow should be on U/D face
+                - L/R edges: Red/Orange should be on L/R face
+                Flipped edge count must be even for valid parity.
+   
+   Parameters:
+     - cube_state: list - 54 color names in face order
+     - debug: bool - If True, print debugging information (default: False)
+   Returns:
+     - bool: True if edge parity is valid (even number of flipped edges)
+
+10. validate_permutation_parity(cube_state, debug=False)
+    Description: Validate permutation parity by counting swaps needed to solve.
+                 Uses extract_edges() and extract_corners() to get pieces,
+                 then counts swaps needed to place them correctly.
+                 Total swaps for both edges and corners must be even.
+    
+    Parameters:
+      - cube_state: list - 54 color names in face order
+      - debug: bool - If True, print debugging information (default: False)
+    Returns:
+      - bool: True if permutation parity is valid (even total swaps)
+
+11. fix_cube_complete(cube_state)
+   Description: Complete cube fixing process. Reorders faces by center pieces,
+                then tries all 4096 rotation combinations to find first valid
+                configuration.
+   Parameters:
+     - cube_state: list - 54 colors in capture order
+   Returns:
+     - tuple: (fixed_cube_state, face_mapping, rotations_applied, is_valid)
+       - fixed_cube_state: list - Best cube state found
+       - face_mapping: dict - Face reordering performed
+       - rotations_applied: list - Rotation degrees for each face [0-270]
+       - is_valid: bool - Whether a valid cube was found
+
+================================================================================
+IMAGE_PROCESSING.PY - Image Processing Utilities
+================================================================================
+
+12. prepare_frame(frame, target_size=(600, 600), brightness=40)
+   Description: Complete preprocessing pipeline for camera frames. Crops to
+                square, resizes, and applies enhancements. Combines multiple
+                processing steps into one function.
+   
+   Processing Steps:
+     1. Crop to square aspect ratio (centered)
+     2. Resize to target size
+     3. Apply white balance correction
+     4. Apply brightness enhancement
+   
+   Parameters:
+     - frame: numpy.ndarray - Input camera frame
+     - target_size: tuple - Target size (width, height), default: (600, 600)
+     - brightness: int - Brightness adjustment amount (default: 40)
+   Returns:
+     - numpy.ndarray: Processed frame ready for color detection
+
+================================================================================
+CAPTURE SPECIFICATIONS DIAGRAM
+================================================================================
+
+Frame Layout (600x600 pixels):
+┌────────────────────────────────────────────────────────────┐
+│                                                            │
+│                    (200, 200)                              │
+│                        ┌──────────────────┐                │
+│                        │  [0,0] [0,1] [0,2]│               │
+│                        │   ■     ■     ■   │               │
+│                        │                   │               │
+│                        │  [1,0] [1,1] [1,2]│  3x3 Grid     │
+│                        │   ■     ■     ■   │  (300x300)    │
+│                        │                   │               │
+│                        │  [2,0] [2,1] [2,2]│               │
+│                        │   ■     ■     ■   │               │
+│                        └──────────────────┘                │
+│                                    (500, 500)              │
+│                                                            │
+└────────────────────────────────────────────────────────────┘
+
+Detection Square Detail:
+  • Each ■ represents a 40x40 pixel detection area
+  • Spacing between centers: 100 pixels (GRID_STEP)
+  • Detection size: ±20 pixels from center (DETECTION_SIZE)
+
+Grid Positions (pixel coordinates from top-left):
+  Position [0,0]: Center at (250, 250) → Area (230, 230) to (270, 270)
+  Position [0,1]: Center at (350, 250) → Area (330, 230) to (370, 270)
+  Position [0,2]: Center at (450, 250) → Area (430, 230) to (470, 270)
+  Position [1,0]: Center at (250, 350) → Area (230, 330) to (270, 370)
+  Position [1,1]: Center at (350, 350) → Area (330, 330) to (370, 370)
+  Position [1,2]: Center at (450, 350) → Area (430, 330) to (470, 370)
+  Position [2,0]: Center at (250, 450) → Area (230, 430) to (270, 470)
+  Position [2,1]: Center at (350, 450) → Area (330, 430) to (370, 470)
+  Position [2,2]: Center at (450, 450) → Area (430, 430) to (470, 470)
+
+================================================================================
+DATA STRUCTURES AND FORMATS
+================================================================================
+
+Cube State Format:
+  - List of 54 color names (strings)
+  - Order: White(0-8), Red(9-17), Green(18-26), Yellow(27-35), 
+           Orange(36-44), Blue(45-53)
+  - Each face is 9 stickers in reading order (left-to-right, top-to-bottom)
+
+Face Layout (indices for each 3x3 face):
+  0 1 2
+  3 4 5
+  6 7 8
+
+Color Names:
+  - Valid: "White", "Red", "Green", "Yellow", "Orange", "Blue"
+  - Invalid: "Unknown", "X"
+
+Cube Notation:
+  - Single letters: U (Up/White), R (Right/Red), F (Front/Green),
+                    D (Down/Yellow), L (Left/Orange), B (Back/Blue)
+
+HSV Format:
+  - Hue: 0-180 (OpenCV uses half of standard 0-360 range)
+  - Saturation: 0-255
+  - Value (Brightness): 0-255
+
+BGR Format:
+  - Blue: 0-255
+  - Green: 0-255
+  - Red: 0-255
+  - Note: OpenCV uses BGR instead of RGB
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

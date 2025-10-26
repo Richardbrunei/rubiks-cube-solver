@@ -124,6 +124,21 @@ def validate_cube_state(cube_state, debug=False):
     if not corners_valid:
         return False
     
+    # Step 6: Check corner rotations (sum must be divisible by 3)
+    corner_rotation_valid = validate_corner_rotations(cube_state, debug)
+    if not corner_rotation_valid:
+        return False
+    
+    # Step 7: Check edge parity (must be even)
+    edge_parity_valid = validate_edge_parity(cube_state, debug)
+    if not edge_parity_valid:
+        return False
+    
+    # Step 8: Check permutation parity (total swaps must be even)
+    permutation_valid = validate_permutation_parity(cube_state, debug)
+    if not permutation_valid:
+        return False
+    
     if debug:
         print(f"\n✅ CUBE IS VALID!")
     
@@ -542,3 +557,297 @@ def fix_cube_complete(cube_state):
     
     # Return original reordered cube if no solution found
     return reordered_cube, face_mapping, [0] * 6, False
+
+
+
+def validate_corner_rotations(cube_state, debug=False):
+    """
+    Validate corner rotations using the white/yellow face method.
+    
+    Each corner has a rotation value:
+    - 0: White or yellow square is on the white or yellow face (correct orientation)
+    - 1: White or yellow square is rotated clockwise from the face
+    - -1: White or yellow square is rotated counter-clockwise from the face
+    
+    The sum of all 8 corner rotations must be divisible by 3.
+    
+    Args:
+        cube_state: List of 54 color names
+        debug: If True, print debugging information
+    
+    Returns:
+        bool: True if corner rotations are valid
+    """
+    if debug:
+        print(f"\nCorner rotation check:")
+    
+    # Define the 8 corner positions with their 3 stickers each
+    # Format: (position_index, expected_face_if_rotation_0)
+    corners_positions = [
+        # White face corners (positions 0, 2, 6, 8)
+        [(0, "White"), (36, "Orange"), (47, "Blue")],      # White-Orange-Blue
+        [(2, "White"), (45, "Blue"), (11, "Red")],         # White-Blue-Red
+        [(6, "White"), (38, "Orange"), (18, "Green")],     # White-Orange-Green
+        [(8, "White"), (20, "Green"), (9, "Red")],         # White-Green-Red
+        
+        # Yellow face corners (positions 27, 29, 33, 35)
+        [(27, "Yellow"), (24, "Green"), (44, "Orange")],   # Yellow-Green-Orange
+        [(29, "Yellow"), (26, "Green"), (15, "Red")],      # Yellow-Green-Red
+        [(33, "Yellow"), (42, "Orange"), (53, "Blue")],    # Yellow-Orange-Blue
+        [(35, "Yellow"), (51, "Blue"), (17, "Red")],       # Yellow-Blue-Red
+    ]
+    
+    rotation_sum = 0
+    
+    for i, corner in enumerate(corners_positions):
+        # Get the actual colors at these positions
+        colors = [cube_state[pos] for pos, _ in corner]
+        
+        # Find where white or yellow is located
+        white_yellow_pos = None
+        for j, color in enumerate(colors):
+            if color in ["White", "Yellow"]:
+                white_yellow_pos = j
+                break
+        
+        if white_yellow_pos is None:
+            if debug:
+                print(f"  ❌ Corner {i+1}: No white or yellow found")
+            return False
+        
+        # Calculate rotation value
+        # Position 0 = correct orientation (rotation 0)
+        # Position 1 = clockwise rotation (rotation 1)
+        # Position 2 = counter-clockwise rotation (rotation -1)
+        if white_yellow_pos == 0:
+            rotation = 0
+        elif white_yellow_pos == 1:
+            rotation = 1
+        else:  # white_yellow_pos == 2
+            rotation = -1
+        
+        rotation_sum += rotation
+        
+        if debug:
+            rotation_name = ["correct", "clockwise", "counter-clockwise"][white_yellow_pos]
+            print(f"  Corner {i+1}: {colors} - {rotation_name} (rotation: {rotation})")
+    
+    is_valid = (rotation_sum % 3) == 0
+    
+    if debug:
+        print(f"  Total rotation sum: {rotation_sum}")
+        print(f"  Divisible by 3: {is_valid}")
+        if is_valid:
+            print(f"  ✅ Corner rotations are valid")
+        else:
+            print(f"  ❌ Corner rotations are invalid (sum must be divisible by 3)")
+    
+    return is_valid
+
+
+def validate_edge_parity(cube_state, debug=False):
+    """
+    Validate edge parity by checking edge orientations.
+    
+    For each edge, check if it's correctly oriented:
+    - Edges with White/Yellow: White or Yellow should be on U/D face (first position)
+    - Edges with Red/Orange (no W/Y): Red or Orange should be on L/R face
+    
+    Count flipped edges. Must be even for valid parity.
+    
+    Args:
+        cube_state: List of 54 color names
+        debug: If True, print debugging information
+    
+    Returns:
+        bool: True if edge parity is valid
+    """
+    if debug:
+        print(f"\nEdge parity check:")
+    
+    # Extract edges using existing function - matches extract_edges() order
+    edges = extract_edges(cube_state)
+    
+    # Define orientation rules matching extract_edges order
+    # Format: (edge_index, pos1, pos2, description, check_type)
+    edge_rules = [
+        # Top layer (White face) - White/Yellow should be on first position
+        (0, 1, 46, "White-Blue", "UD"),
+        (1, 3, 37, "White-Orange", "UD"),
+        (2, 5, 10, "White-Red", "UD"),
+        (3, 7, 19, "White-Green", "UD"),
+        
+        # Middle layer - Red/Orange should be on Red/Orange face
+        (4, 12, 23, "Red-Green", "LR"),
+        (5, 50, 39, "Blue-Orange", "LR"),
+        (6, 21, 41, "Green-Orange", "LR"),
+        (7, 14, 48, "Red-Blue", "LR"),
+        
+        # Bottom layer (Yellow face) - White/Yellow should be on first position
+        (8, 28, 25, "Yellow-Green", "UD"),
+        (9, 30, 43, "Yellow-Orange", "UD"),
+        (10, 32, 16, "Yellow-Red", "UD"),
+        (11, 34, 52, "Yellow-Blue", "UD"),
+    ]
+    
+    flipped_edges = 0
+    
+    for edge_idx, pos1, pos2, desc, check_type in edge_rules:
+        color1, color2 = edges[edge_idx]
+        is_correct = False
+        
+        if check_type == "UD":
+            # White or Yellow should be on U/D face (first position)
+            if color1 in ["White", "Yellow"]:
+                is_correct = True
+        elif check_type == "LR":
+            # Red or Orange should be on L/R face
+            if pos1 in [12, 14, 16] and color1 == "Red":  # Red face
+                is_correct = True
+            elif pos1 in [39, 41, 43] and color1 == "Orange":  # Orange face
+                is_correct = True
+            elif pos2 in [12, 14, 16] and color2 == "Red":  # Red face
+                is_correct = True
+            elif pos2 in [39, 41, 43] and color2 == "Orange":  # Orange face
+                is_correct = True
+        
+        if not is_correct:
+            flipped_edges += 1
+            if debug:
+                print(f"  ✗ Edge {edge_idx+1} ({desc}): {color1}-{color2} - FLIPPED")
+        else:
+            if debug:
+                print(f"  ✓ Edge {edge_idx+1} ({desc}): {color1}-{color2} - correct")
+    
+    is_valid = (flipped_edges % 2) == 0
+    
+    if debug:
+        print(f"  Flipped edges: {flipped_edges}")
+        print(f"  Parity: {'even' if is_valid else 'odd'}")
+        if is_valid:
+            print(f"  ✅ Edge parity is valid (even)")
+        else:
+            print(f"  ❌ Edge parity is invalid (must be even)")
+    
+    return is_valid
+
+
+def validate_permutation_parity(cube_state, debug=False):
+    """
+    Validate permutation parity by counting swaps needed to solve.
+    
+    Counts the number of swaps needed to place all pieces in their correct
+    positions. The total number of swaps for both edges and corners must be even.
+    
+    Args:
+        cube_state: List of 54 color names
+        debug: If True, print debugging information
+    
+    Returns:
+        bool: True if permutation parity is valid
+    """
+    if debug:
+        print(f"\nPermutation parity check:")
+    
+    # Use existing extract_corners function
+    corners = extract_corners(cube_state)
+    
+    # Define what each corner position should contain (in order)
+    expected_corners = [
+        tuple(sorted(["White", "Orange", "Blue"])),
+        tuple(sorted(["White", "Blue", "Red"])),
+        tuple(sorted(["White", "Orange", "Green"])),
+        tuple(sorted(["White", "Green", "Red"])),
+        tuple(sorted(["Yellow", "Green", "Orange"])),
+        tuple(sorted(["Yellow", "Green", "Red"])),
+        tuple(sorted(["Yellow", "Orange", "Blue"])),
+        tuple(sorted(["Yellow", "Blue", "Red"])),
+    ]
+    
+    # Create mapping: which piece should be in which position
+    corner_mapping = []
+    for corner in corners:
+        corner_sorted = tuple(sorted(corner))
+        try:
+            correct_pos = expected_corners.index(corner_sorted)
+            corner_mapping.append(correct_pos)
+        except ValueError:
+            if debug:
+                print(f"  ❌ Invalid corner piece: {corner}")
+            return False
+    
+    # Count swaps for corners
+    corner_swaps = count_swaps(corner_mapping.copy())
+    
+    if debug:
+        print(f"  Corner swaps needed: {corner_swaps}")
+    
+    # Use existing extract_edges function
+    edges = extract_edges(cube_state)
+    
+    # Define what each edge position should contain (in order matching extract_edges)
+    expected_edges = [
+        tuple(sorted(["White", "Blue"])),
+        tuple(sorted(["White", "Orange"])),
+        tuple(sorted(["White", "Red"])),
+        tuple(sorted(["White", "Green"])),
+        tuple(sorted(["Red", "Green"])),
+        tuple(sorted(["Blue", "Orange"])),
+        tuple(sorted(["Green", "Orange"])),
+        tuple(sorted(["Red", "Blue"])),
+        tuple(sorted(["Yellow", "Green"])),
+        tuple(sorted(["Yellow", "Orange"])),
+        tuple(sorted(["Yellow", "Red"])),
+        tuple(sorted(["Yellow", "Blue"])),
+    ]
+    
+    # Create mapping for edges
+    edge_mapping = []
+    for edge in edges:
+        edge_sorted = tuple(sorted(edge))
+        try:
+            correct_pos = expected_edges.index(edge_sorted)
+            edge_mapping.append(correct_pos)
+        except ValueError:
+            if debug:
+                print(f"  ❌ Invalid edge piece: {edge}")
+            return False
+    
+    # Count swaps for edges
+    edge_swaps = count_swaps(edge_mapping.copy())
+    
+    if debug:
+        print(f"  Edge swaps needed: {edge_swaps}")
+    
+    total_swaps = corner_swaps + edge_swaps
+    is_valid = (total_swaps % 2) == 0
+    
+    if debug:
+        print(f"  Total swaps: {total_swaps}")
+        print(f"  Parity: {'even' if is_valid else 'odd'}")
+        if is_valid:
+            print(f"  ✅ Permutation parity is valid (even)")
+        else:
+            print(f"  ❌ Permutation parity is invalid (must be even)")
+    
+    return is_valid
+
+
+def count_swaps(pieces):
+    """
+    Count the number of swaps needed to sort pieces into correct positions.
+    
+    Args:
+        pieces: List where pieces[i] indicates which piece is in position i
+    
+    Returns:
+        int: Number of swaps needed
+    """
+    swaps = 0
+    for pos in range(len(pieces)):
+        while pieces[pos] != pos:
+            # Swap piece at current position with piece at its target position
+            dst = pieces[pos]
+            pieces[pos], pieces[dst] = pieces[dst], pieces[pos]
+            swaps += 1
+    return swaps
