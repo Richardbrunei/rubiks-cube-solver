@@ -75,4 +75,15 @@ Expected response:
 
 ---
 
+## 🔧 Fixed Import Issues
+
+The backend now automatically adds the parent directory to Python path, so it can import:
+- `config.py`
+- `camera_interface.py`
+- `cube_validation.py`
+- `color_detection.py`
+- `image_processing.py`
+
+All from the root directory!
+
 **You're all set!** Push to GitHub and Render will handle the rest. 🚀

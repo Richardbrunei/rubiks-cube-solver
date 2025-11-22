@@ -37,6 +37,14 @@ CORS(app, resources={
 # Local development path (Windows) - kept for testing
 LOCAL_DEV_PATH = r"C:\Users\Liang\OneDrive\Documents\cube_code_backend"
 
+# For Render deployment: Add parent directory to Python path
+# This allows importing modules from the root directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+    print(f"[INFO] Added parent directory to path: {parent_dir}")
+
 # Check environment variable first (for Render/production)
 BACKEND_PATH = os.environ.get('BACKEND_PATH', LOCAL_DEV_PATH)
 
@@ -45,10 +53,9 @@ if os.path.exists(BACKEND_PATH):
     sys.path.insert(0, BACKEND_PATH)
     print(f"[SUCCESS] Added backend path: {BACKEND_PATH}")
 else:
-    # Production mode - no external backend, use built-in fallbacks
-    BACKEND_PATH = None
-    print(f"[INFO] Running in production mode with built-in fallbacks")
-    print(f"[INFO] No backend path found at: {os.environ.get('BACKEND_PATH', LOCAL_DEV_PATH)}")
+    # Production mode - try parent directory
+    BACKEND_PATH = parent_dir
+    print(f"[INFO] Using parent directory as backend path: {BACKEND_PATH}")
 
 # Import backend modules or use fallbacks
 try:
