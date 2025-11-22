@@ -16,7 +16,20 @@ import sys
 import os
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend requests
+
+# Enable CORS for all routes with explicit configuration
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:8000",  # Local development
+            "http://127.0.0.1:8000",  # Local development
+            "https://*.onrender.com",  # All Render domains
+            "*"  # Allow all origins (can be restricted in production)
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # Configure backend path for different environments
 # Priority: Environment variable > Local dev path > Production fallback
