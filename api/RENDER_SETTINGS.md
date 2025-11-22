@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 ### Start Command
 ```
-gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend_api:app
+cd api && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend_api:app
 ```
 
 ---
@@ -83,7 +83,7 @@ pip install -r requirements.txt
 
 **Start Command:**
 ```
-gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend_api:app
+cd api && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend_api:app
 ```
 
 ---
@@ -179,7 +179,7 @@ Free tier sleeps after 15 minutes. To keep it awake:
 Name: rubiks-cube-backend
 Environment: Python 3
 Build: pip install -r requirements.txt
-Start: gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend_api:app
+Start: cd api && gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 backend_api:app
 ```
 
 **For Frontend Config:**
