@@ -27,7 +27,7 @@ def detect_color_low_brightness(dominant_bgr, h, s, v):
     # Normalize BGR values to get ratios
     total = b + g + r
     if total == 0:
-        return "Unknown"
+        return "White"
     
     b_ratio = b / total
     g_ratio = g / total  
@@ -66,7 +66,7 @@ def detect_color_low_brightness(dominant_bgr, h, s, v):
     
     # Fallback: use BGR distance method
     min_dist = float("inf")
-    best_match = "Unknown"
+    best_match = "White"
     
     for color_name, ranges in COLOR_RANGES.items():
         bgr_dist = np.linalg.norm(dominant_bgr - ranges["backup_bgr"])
@@ -90,10 +90,10 @@ def detect_color_advanced(patch, use_fast=False):
         use_fast: If True, uses simple averaging instead of KMeans (faster for live preview)
     
     Returns:
-        String: Detected color name or "Unknown"
+        String: Detected color name or "White"
     """
     if patch.size == 0:
-        return "Unknown"
+        return "White"
     
     # Step 1: Get dominant color from patch
     # Use fast method for live preview, accurate method for final capture
@@ -178,7 +178,7 @@ def detect_color_advanced(patch, use_fast=False):
     # If no HSV matches found, use traditional color distance in BGR space
     if max(color_scores.values()) == 0:
         min_dist = float("inf")
-        best_match = "Unknown"
+        best_match = "White"
         
         for color_name, ranges in COLOR_RANGES.items():
             # Calculate Euclidean distance in BGR color space
@@ -191,7 +191,7 @@ def detect_color_advanced(patch, use_fast=False):
     
     # Step 5: Return best match from HSV analysis
     best_color = max(color_scores, key=color_scores.get)
-    return best_color if color_scores[best_color] > 0 else "Unknown"
+    return best_color if color_scores[best_color] > 0 else "White"
 
 
 def get_dominant_color_fast(patch):
