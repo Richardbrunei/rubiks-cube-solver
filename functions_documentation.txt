@@ -167,8 +167,8 @@ CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
      - If show_analysis=False: bool - True if valid, False if invalid (fast-fail on first error)
      - If show_analysis=True: tuple - (is_valid, message_string)
        • Valid: (True, "Cube is valid")
-       • Invalid: (False, "Error1; Error2; Error3")
-         Multiple errors are separated by "; " (semicolon + space)
+       • Invalid: (False, "Error1\nError2\nError3")
+         Multiple errors are separated by newlines (\n)
    
    Example Error Messages:
      Single error:
@@ -176,8 +176,8 @@ CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
        - "Wrong centers: White face has Red, Red face has White"
        - "Edge 3 has opposite colors: White-Yellow"
      
-     Multiple errors:
-       - "Wrong color counts: White: 11, Blue: 7 (expected 9 each); Wrong centers: White face has Red; Edge 12 has opposite colors: Yellow-White"
+     Multiple errors (separated by newlines):
+       - "Wrong color counts: White: 11, Blue: 7 (expected 9 each)\nWrong centers: White face has Red\nEdge 12 has opposite colors: Yellow-White"
 
 8. validate_corner_rotations(cube_state, debug=False, show_analysis=False)
    Description: Validate corner rotations using white/yellow face method.

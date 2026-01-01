@@ -213,7 +213,7 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
         if is_valid:
             return True, "Cube is valid"
         else:
-            return False, "; ".join(errors_found)
+            return False, "\n".join(errors_found)
     
     return is_valid
 
