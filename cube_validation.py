@@ -6,7 +6,7 @@ import numpy as np
 from config import COLOR_TO_CUBE
 
 
-def validate_cube_state(cube_state, debug=False):
+def validate_cube_state(cube_state, debug=False, show_analysis=False):
     """
     Validate cube state with clear step-by-step validation and debugging output.
     
@@ -25,10 +25,15 @@ def validate_cube_state(cube_state, debug=False):
     Args:
         cube_state: List of 54 color names in face order [White, Red, Green, Yellow, Orange, Blue]
         debug: If True, print debugging information
+        show_analysis: If True, return tuple (is_valid, analysis_string) instead of just bool
     
     Returns:
-        bool: True if valid, False if invalid
+        bool or tuple: 
+            - If show_analysis=False: True if valid, False if invalid
+            - If show_analysis=True: (is_valid, analysis_string)
     """
+    analysis_lines = []
+    
     if debug:
         print("="*60)
         print("CUBE VALIDATION DEBUG")
@@ -36,8 +41,12 @@ def validate_cube_state(cube_state, debug=False):
     
     # Step 1: Check cube length
     if len(cube_state) != 54:
+        msg = f"Invalid length: {len(cube_state)} (expected 54)"
         if debug:
-            print(f"❌ Invalid length: {len(cube_state)} (expected 54)")
+            print(f"❌ {msg}")
+        if show_analysis:
+            analysis_lines.append(msg)
+            return False, "\n".join(analysis_lines)
         return False
     
     if debug:
@@ -47,8 +56,12 @@ def validate_cube_state(cube_state, debug=False):
     color_counts = {}
     for color in cube_state:
         if color == "Unknown" or color == "X":
+            msg = "Contains unknown colors"
             if debug:
-                print(f"❌ Contains unknown colors")
+                print(f"❌ {msg}")
+            if show_analysis:
+                analysis_lines.append(msg)
+                return False, "\n".join(analysis_lines)
             return False
         color_counts[color] = color_counts.get(color, 0) + 1
     
@@ -62,19 +75,31 @@ def validate_cube_state(cube_state, debug=False):
             print(f"  {status} {color}: {count}")
     
     # Validate color counts
+    color_errors = []
     for color in expected_colors:
         count = color_counts.get(color, 0)
         if count != 9:
-            if debug:
-                print(f"❌ Invalid {color} count: {count} (expected 9)")
-            return False
+            color_errors.append(f"{color}: {count}")
     
     # Check for unexpected colors
     for color in color_counts:
         if color not in expected_colors:
+            msg = f"Unexpected color: {color}"
             if debug:
-                print(f"❌ Unexpected color: {color}")
+                print(f"❌ {msg}")
+            if show_analysis:
+                analysis_lines.append(msg)
+                return False, "\n".join(analysis_lines)
             return False
+    
+    if color_errors:
+        msg = f"Wrong color counts: {', '.join(color_errors)} (expected 9 each)"
+        if debug:
+            print(f"❌ {msg}")
+        if show_analysis:
+            analysis_lines.append(msg)
+            return False, "\n".join(analysis_lines)
+        return False
     
     # Step 3: Check center pieces
     centers = [
@@ -94,11 +119,19 @@ def validate_cube_state(cube_state, debug=False):
             print(f"  {status} {face_names[i]} face center: {actual}")
     
     # Validate centers (each face should have its own color as center)
+    center_errors = []
     for i, (expected, actual) in enumerate(zip(expected_colors, centers)):
         if expected != actual:
-            if debug:
-                print(f"❌ Wrong center: {expected} face has {actual} center")
-            return False
+            center_errors.append(f"{expected} face has {actual}")
+    
+    if center_errors:
+        msg = f"Wrong centers: {', '.join(center_errors)}"
+        if debug:
+            print(f"❌ {msg}")
+        if show_analysis:
+            analysis_lines.append(msg)
+            return False, "\n".join(analysis_lines)
+        return False
     
     # Step 4: Extract and validate edges
     edges = extract_edges(cube_state)
@@ -108,8 +141,11 @@ def validate_cube_state(cube_state, debug=False):
         for i, (color1, color2) in enumerate(edges):
             print(f"  {i+1:2d}. {color1} - {color2}")
     
-    edges_valid = validate_edges(edges, debug)
+    edges_valid, edge_error = validate_edges(edges, debug, show_analysis)
     if not edges_valid:
+        if show_analysis:
+            analysis_lines.append(edge_error)
+            return False, "\n".join(analysis_lines)
         return False
     
     # Step 5: Extract and validate corners
@@ -120,27 +156,42 @@ def validate_cube_state(cube_state, debug=False):
         for i, (color1, color2, color3) in enumerate(corners):
             print(f"  {i+1}. {color1} - {color2} - {color3}")
     
-    corners_valid = validate_corners(corners, debug)
+    corners_valid, corner_error = validate_corners(corners, debug, show_analysis)
     if not corners_valid:
+        if show_analysis:
+            analysis_lines.append(corner_error)
+            return False, "\n".join(analysis_lines)
         return False
     
     # Step 6: Check corner rotations (sum must be divisible by 3)
-    corner_rotation_valid = validate_corner_rotations(cube_state, debug)
+    corner_rotation_valid, rotation_error = validate_corner_rotations(cube_state, debug, show_analysis)
     if not corner_rotation_valid:
+        if show_analysis:
+            analysis_lines.append(rotation_error)
+            return False, "\n".join(analysis_lines)
         return False
     
     # Step 7: Check edge parity (must be even)
-    edge_parity_valid = validate_edge_parity(cube_state, debug)
+    edge_parity_valid, parity_error = validate_edge_parity(cube_state, debug, show_analysis)
     if not edge_parity_valid:
+        if show_analysis:
+            analysis_lines.append(parity_error)
+            return False, "\n".join(analysis_lines)
         return False
     
     # Step 8: Check permutation parity (total swaps must be even)
-    permutation_valid = validate_permutation_parity(cube_state, debug)
+    permutation_valid, permutation_error = validate_permutation_parity(cube_state, debug, show_analysis)
     if not permutation_valid:
+        if show_analysis:
+            analysis_lines.append(permutation_error)
+            return False, "\n".join(analysis_lines)
         return False
     
     if debug:
         print(f"\n✅ CUBE IS VALID!")
+    if show_analysis:
+        analysis_lines.append("Cube is valid")
+        return True, "\n".join(analysis_lines)
     
     return True
 
@@ -207,7 +258,7 @@ def extract_corners(cube_state):
     return corners
 
 
-def validate_edges(edges, debug=False):
+def validate_edges(edges, debug=False, show_analysis=False):
     """Validate that edges are geometrically possible and unique"""
     
     if debug:
@@ -225,37 +276,49 @@ def validate_edges(edges, debug=False):
     for i, (color1, color2) in enumerate(edges):
         # Check for same color edges (impossible)
         if color1 == color2:
+            msg = f"Edge {i+1} has same color: {color1}"
             if debug:
-                print(f"  ❌ Edge {i+1}: {color1}-{color2} (impossible - same color)")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
         
         # Check for impossible edges (opposite colors)
         if (color1, color2) in impossible_edges:
+            msg = f"Edge {i+1} has opposite colors: {color1}-{color2}"
             if debug:
-                print(f"  ❌ Edge {i+1}: {color1}-{color2} (impossible - opposite colors)")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
         
         # Check for duplicate edges
         edge = tuple(sorted([color1, color2]))
         if edge in seen_edges:
+            msg = f"Duplicate edge {i+1}: {color1}-{color2}"
             if debug:
-                print(f"  ❌ Edge {i+1}: {color1}-{color2} (duplicate)")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
         seen_edges.add(edge)
     
     # Must have exactly 12 unique edges
     if len(seen_edges) != 12:
+        msg = f"Expected 12 unique edges, found {len(seen_edges)}"
         if debug:
-            print(f"  ❌ Expected 12 unique edges, found {len(seen_edges)}")
-        return False
+            print(f"  ❌ {msg}")
+        if show_analysis:
+            return False, msg
+        return False, None
     
     if debug:
         print(f"  ✅ All {len(edges)} edges are valid and unique")
     
-    return True
+    return True, None
 
 
-def validate_corners(corners, debug=False):
+def validate_corners(corners, debug=False, show_analysis=False):
     """Validate that corners are geometrically possible and unique"""
     
     if debug:
@@ -271,35 +334,47 @@ def validate_corners(corners, debug=False):
         
         # Check for repeated colors in corner (impossible - each corner must have 3 different colors)
         if len(corner_colors) < 3:
+            msg = f"Corner {i+1} has repeated colors: {color1}-{color2}-{color3}"
             if debug:
-                print(f"  ❌ Corner {i+1}: {color1}-{color2}-{color3} (impossible - repeated colors)")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
         
         # Check for opposite colors in same corner (impossible in physical cube)
         for opp1, opp2 in opposite_pairs:
             if opp1 in corner_colors and opp2 in corner_colors:
+                msg = f"Corner {i+1} has opposite colors: {color1}-{color2}-{color3}"
                 if debug:
-                    print(f"  ❌ Corner {i+1}: {color1}-{color2}-{color3} (impossible - opposite colors)")
-                return False
+                    print(f"  ❌ {msg}")
+                if show_analysis:
+                    return False, msg
+                return False, None
         
         # Check for duplicate corners
         corner = tuple(sorted([color1, color2, color3]))
         if corner in seen_corners:
+            msg = f"Duplicate corner {i+1}: {color1}-{color2}-{color3}"
             if debug:
-                print(f"  ❌ Corner {i+1}: {color1}-{color2}-{color3} (duplicate)")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
         seen_corners.add(corner)
     
     # Must have exactly 8 unique corners
     if len(seen_corners) != 8:
+        msg = f"Expected 8 unique corners, found {len(seen_corners)}"
         if debug:
-            print(f"  ❌ Expected 8 unique corners, found {len(seen_corners)}")
-        return False
+            print(f"  ❌ {msg}")
+        if show_analysis:
+            return False, msg
+        return False, None
     
     if debug:
         print(f"  ✅ All {len(corners)} corners are valid and unique")
     
-    return True
+    return True, None
 
 
 def is_cube_theoretically_valid(cube_state):
@@ -560,7 +635,7 @@ def fix_cube_complete(cube_state):
 
 
 
-def validate_corner_rotations(cube_state, debug=False):
+def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
     """
     Validate corner rotations using the white/yellow face method.
     
@@ -574,9 +649,10 @@ def validate_corner_rotations(cube_state, debug=False):
     Args:
         cube_state: List of 54 color names
         debug: If True, print debugging information
+        show_analysis: If True, return error message
     
     Returns:
-        bool: True if corner rotations are valid
+        tuple: (is_valid, error_message)
     """
     if debug:
         print(f"\nCorner rotation check:")
@@ -611,9 +687,12 @@ def validate_corner_rotations(cube_state, debug=False):
                 break
         
         if white_yellow_pos is None:
+            msg = f"Corner {i+1} missing white/yellow"
             if debug:
-                print(f"  ❌ Corner {i+1}: No white or yellow found")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
         
         # Calculate rotation value
         # Position 0 = correct orientation (rotation 0)
@@ -642,10 +721,16 @@ def validate_corner_rotations(cube_state, debug=False):
         else:
             print(f"  ❌ Corner rotations are invalid (sum must be divisible by 3)")
     
-    return is_valid
+    if not is_valid:
+        msg = f"Corner rotation sum {rotation_sum} not divisible by 3"
+        if show_analysis:
+            return False, msg
+        return False, None
+    
+    return True, None
 
 
-def validate_edge_parity(cube_state, debug=False):
+def validate_edge_parity(cube_state, debug=False, show_analysis=False):
     """
     Validate edge parity by checking edge orientations.
     
@@ -658,9 +743,10 @@ def validate_edge_parity(cube_state, debug=False):
     Args:
         cube_state: List of 54 color names
         debug: If True, print debugging information
+        show_analysis: If True, return error message
     
     Returns:
-        bool: True if edge parity is valid
+        tuple: (is_valid, error_message)
     """
     if debug:
         print(f"\nEdge parity check:")
@@ -729,10 +815,16 @@ def validate_edge_parity(cube_state, debug=False):
         else:
             print(f"  ❌ Edge parity is invalid (must be even)")
     
-    return is_valid
+    if not is_valid:
+        msg = f"Edge parity invalid: {flipped_edges} flipped edges (must be even)"
+        if show_analysis:
+            return False, msg
+        return False, None
+    
+    return True, None
 
 
-def validate_permutation_parity(cube_state, debug=False):
+def validate_permutation_parity(cube_state, debug=False, show_analysis=False):
     """
     Validate permutation parity by counting swaps needed to solve.
     
@@ -742,9 +834,10 @@ def validate_permutation_parity(cube_state, debug=False):
     Args:
         cube_state: List of 54 color names
         debug: If True, print debugging information
+        show_analysis: If True, return error message
     
     Returns:
-        bool: True if permutation parity is valid
+        tuple: (is_valid, error_message)
     """
     if debug:
         print(f"\nPermutation parity check:")
@@ -772,9 +865,12 @@ def validate_permutation_parity(cube_state, debug=False):
             correct_pos = expected_corners.index(corner_sorted)
             corner_mapping.append(correct_pos)
         except ValueError:
+            msg = f"Invalid corner piece: {corner}"
             if debug:
-                print(f"  ❌ Invalid corner piece: {corner}")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
     
     # Count swaps for corners
     corner_swaps = count_swaps(corner_mapping.copy())
@@ -809,9 +905,12 @@ def validate_permutation_parity(cube_state, debug=False):
             correct_pos = expected_edges.index(edge_sorted)
             edge_mapping.append(correct_pos)
         except ValueError:
+            msg = f"Invalid edge piece: {edge}"
             if debug:
-                print(f"  ❌ Invalid edge piece: {edge}")
-            return False
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
     
     # Count swaps for edges
     edge_swaps = count_swaps(edge_mapping.copy())
@@ -830,7 +929,13 @@ def validate_permutation_parity(cube_state, debug=False):
         else:
             print(f"  ❌ Permutation parity is invalid (must be even)")
     
-    return is_valid
+    if not is_valid:
+        msg = f"Permutation parity invalid: {total_swaps} total swaps (must be even)"
+        if show_analysis:
+            return False, msg
+        return False, None
+    
+    return True, None
 
 
 def count_swaps(pieces):

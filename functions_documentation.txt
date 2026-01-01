@@ -141,7 +141,7 @@ CONFIG.PY - Configuration Constants
 CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
 ================================================================================
 
-7. validate_cube_state(cube_state, debug=False)
+7. validate_cube_state(cube_state, debug=False, show_analysis=False)
    Description: Comprehensive cube state validation with 8-step verification.
                 Uses advanced solvability checks based on Rubik's cube theory.
    
@@ -157,11 +157,24 @@ CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
    
    Parameters:
      - cube_state: list - 54 color names in face order
-     - debug: bool - If True, print debugging information (default: False)
+     - debug: bool - If True, print detailed debugging to console (default: False)
+     - show_analysis: bool - If True, return error message string (default: False)
+   
    Returns:
-     - bool: True if valid and solvable, False if invalid
+     - If show_analysis=False: bool - True if valid, False if invalid
+     - If show_analysis=True: tuple - (is_valid, message_string)
+       • Valid: (True, "Cube is valid")
+       • Invalid: (False, "Brief error description")
+   
+   Example Error Messages:
+     - "Wrong color counts: White: 11, Red: 7 (expected 9 each)"
+     - "Wrong centers: White face has Red, Red face has White"
+     - "Edge 3 has opposite colors: White-Yellow"
+     - "Duplicate edge 5: Red-Green"
+     - "Corner rotation sum 5 not divisible by 3"
+     - "Edge parity invalid: 3 flipped edges (must be even)"
 
-8. validate_corner_rotations(cube_state, debug=False)
+8. validate_corner_rotations(cube_state, debug=False, show_analysis=False)
    Description: Validate corner rotations using white/yellow face method.
                 Each corner has a rotation value (0, 1, or -1) based on
                 white/yellow position. Sum must be divisible by 3.
@@ -174,10 +187,13 @@ CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
    Parameters:
      - cube_state: list - 54 color names in face order
      - debug: bool - If True, print debugging information (default: False)
+     - show_analysis: bool - If True, return error message (default: False)
+   
    Returns:
-     - bool: True if corner rotations are valid
+     - If show_analysis=False: bool - True if valid
+     - If show_analysis=True: tuple - (is_valid, error_message or None)
 
-9. validate_edge_parity(cube_state, debug=False)
+9. validate_edge_parity(cube_state, debug=False, show_analysis=False)
    Description: Validate edge parity by checking edge orientations.
                 Counts flipped edges using orientation rules:
                 - U/D edges: White/Yellow should be on U/D face
@@ -187,10 +203,13 @@ CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
    Parameters:
      - cube_state: list - 54 color names in face order
      - debug: bool - If True, print debugging information (default: False)
+     - show_analysis: bool - If True, return error message (default: False)
+   
    Returns:
-     - bool: True if edge parity is valid (even number of flipped edges)
+     - If show_analysis=False: bool - True if valid
+     - If show_analysis=True: tuple - (is_valid, error_message or None)
 
-10. validate_permutation_parity(cube_state, debug=False)
+10. validate_permutation_parity(cube_state, debug=False, show_analysis=False)
     Description: Validate permutation parity by counting swaps needed to solve.
                  Uses extract_edges() and extract_corners() to get pieces,
                  then counts swaps needed to place them correctly.
@@ -199,8 +218,11 @@ CUBE_VALIDATION.PY - Cube Validation and Fixing Functions
     Parameters:
       - cube_state: list - 54 color names in face order
       - debug: bool - If True, print debugging information (default: False)
+      - show_analysis: bool - If True, return error message (default: False)
+    
     Returns:
-      - bool: True if permutation parity is valid (even total swaps)
+      - If show_analysis=False: bool - True if valid
+      - If show_analysis=True: tuple - (is_valid, error_message or None)
 
 11. fix_cube_complete(cube_state)
    Description: Complete cube fixing process. Reorders faces by center pieces,
