@@ -121,7 +121,17 @@ Content-Type: application/json
 
 {
   "cube_state": ["White", "Red", "Green", ...],
-  "cube_string": "UUUUUUUUU..."
+  "cube_string": "UUUUUUUUU...",
+  "show_analysis": true  // Optional: get detailed error message
+}
+
+Response:
+{
+  "success": true,
+  "is_valid": false,
+  "message": "Cube state is invalid",
+  "analysis": "Wrong color counts: White: 11, Red: 7 (expected 9 each)",
+  "warnings": []
 }
 ```
 

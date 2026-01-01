@@ -924,14 +924,25 @@ def validate_cube():
     Expected request format:
     {
         "cube_state": ["White", "Red", ...],  // 54 color names
-        "cube_string": "UUUUUUUUU..."         // 54-character cubestring (optional)
+        "cube_string": "UUUUUUUUU...",        // 54-character cubestring (optional)
+        "show_analysis": true                  // Optional: return detailed error message
     }
     
     Returns:
     {
         "success": true,
         "is_valid": true,
-        "message": "Cube state is valid",
+        "message": "Cube is valid",
+        "analysis": "Cube is valid",  // Only if show_analysis=true
+        "warnings": []
+    }
+    
+    Or if invalid:
+    {
+        "success": true,
+        "is_valid": false,
+        "message": "Cube state is invalid",
+        "analysis": "Wrong color counts: White: 11, Red: 7 (expected 9 each)",
         "warnings": []
     }
     """
@@ -958,6 +969,7 @@ def validate_cube():
         
         cube_state = data.get('cube_state')
         cube_string = data.get('cube_string')
+        show_analysis = data.get('show_analysis', False)
         
         if not cube_state or not isinstance(cube_state, list):
             return jsonify({
@@ -971,8 +983,12 @@ def validate_cube():
                 'error': f'Invalid cube_state length: expected 54, got {len(cube_state)}'
             }), 400
         
-        # Validate using backend function
-        is_valid = validate_cube_state(cube_state, debug=False)
+        # Validate using backend function with optional analysis
+        if show_analysis:
+            is_valid, analysis_message = validate_cube_state(cube_state, debug=False, show_analysis=True)
+        else:
+            is_valid = validate_cube_state(cube_state, debug=False, show_analysis=False)
+            analysis_message = None
         
         warnings = []
         
@@ -988,13 +1004,19 @@ def validate_cube():
                     'actual': cube_string
                 })
         
-        return jsonify({
+        response = {
             'success': True,
             'is_valid': is_valid,
-            'message': 'Cube state is valid' if is_valid else 'Cube state is invalid',
+            'message': 'Cube is valid' if is_valid else 'Cube state is invalid',
             'warnings': warnings,
             'cube_state_length': len(cube_state)
-        })
+        }
+        
+        # Add analysis message if requested
+        if show_analysis and analysis_message:
+            response['analysis'] = analysis_message
+        
+        return jsonify(response)
         
     except Exception as e:
         return jsonify({

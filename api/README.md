@@ -123,8 +123,28 @@ The endpoint extracts colors from a 3x3 grid with these specifications:
 {
   "success": true,
   "is_valid": true,
-  "message": "Cube state is valid",
+  "message": "Cube is valid",
   "warnings": []
+}
+```
+
+**With Analysis (show_analysis=true):**
+```json
+{
+  "success": true,
+  "is_valid": false,
+  "message": "Cube state is invalid",
+  "analysis": "Wrong color counts: White: 11, Red: 7 (expected 9 each)",
+  "warnings": []
+}
+```
+
+**Request Format:**
+```json
+{
+  "cube_state": ["White", "Red", "Green", ...],
+  "cube_string": "UUUUUUUUU...",
+  "show_analysis": true  // Optional: returns detailed error message
 }
 ```
 
