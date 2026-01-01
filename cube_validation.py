@@ -25,14 +25,15 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
     Args:
         cube_state: List of 54 color names in face order [White, Red, Green, Yellow, Orange, Blue]
         debug: If True, print debugging information
-        show_analysis: If True, return tuple (is_valid, analysis_string) instead of just bool
+        show_analysis: If True, return tuple (is_valid, analysis_string) and collect all errors
     
     Returns:
         bool or tuple: 
-            - If show_analysis=False: True if valid, False if invalid
-            - If show_analysis=True: (is_valid, analysis_string)
+            - If show_analysis=False: True if valid, False if invalid (returns on first error)
+            - If show_analysis=True: (is_valid, analysis_string) with all errors collected
     """
     analysis_lines = []
+    errors_found = []
     
     if debug:
         print("="*60)
@@ -45,29 +46,40 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
         if debug:
             print(f"❌ {msg}")
         if show_analysis:
-            analysis_lines.append(msg)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(msg)
+        else:
+            return False
     
-    if debug:
+    if debug and len(cube_state) == 54:
         print(f"✅ Length check: {len(cube_state)} stickers")
+    
+    # If length is wrong, can't continue validation
+    if len(cube_state) != 54:
+        if show_analysis:
+            return False, "\n".join(errors_found)
+        return False
     
     # Step 2: Check color counts
     color_counts = {}
+    has_unknown = False
     for color in cube_state:
         if color == "Unknown" or color == "X":
-            msg = "Contains unknown colors"
-            if debug:
-                print(f"❌ {msg}")
-            if show_analysis:
-                analysis_lines.append(msg)
-                return False, "\n".join(analysis_lines)
-            return False
+            has_unknown = True
+            break
         color_counts[color] = color_counts.get(color, 0) + 1
+    
+    if has_unknown:
+        msg = "Contains unknown colors"
+        if debug:
+            print(f"❌ {msg}")
+        if show_analysis:
+            errors_found.append(msg)
+        else:
+            return False
     
     expected_colors = ["White", "Red", "Green", "Yellow", "Orange", "Blue"]
     
-    if debug:
+    if debug and not has_unknown:
         print(f"\nColor counts:")
         for color in expected_colors:
             count = color_counts.get(color, 0)
@@ -75,31 +87,32 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
             print(f"  {status} {color}: {count}")
     
     # Validate color counts
-    color_errors = []
-    for color in expected_colors:
-        count = color_counts.get(color, 0)
-        if count != 9:
-            color_errors.append(f"{color}: {count}")
-    
-    # Check for unexpected colors
-    for color in color_counts:
-        if color not in expected_colors:
-            msg = f"Unexpected color: {color}"
+    if not has_unknown:
+        color_errors = []
+        for color in expected_colors:
+            count = color_counts.get(color, 0)
+            if count != 9:
+                color_errors.append(f"{color}: {count}")
+        
+        # Check for unexpected colors
+        for color in color_counts:
+            if color not in expected_colors:
+                msg = f"Unexpected color: {color}"
+                if debug:
+                    print(f"❌ {msg}")
+                if show_analysis:
+                    errors_found.append(msg)
+                else:
+                    return False
+        
+        if color_errors:
+            msg = f"Wrong color counts: {', '.join(color_errors)} (expected 9 each)"
             if debug:
                 print(f"❌ {msg}")
             if show_analysis:
-                analysis_lines.append(msg)
-                return False, "\n".join(analysis_lines)
-            return False
-    
-    if color_errors:
-        msg = f"Wrong color counts: {', '.join(color_errors)} (expected 9 each)"
-        if debug:
-            print(f"❌ {msg}")
-        if show_analysis:
-            analysis_lines.append(msg)
-            return False, "\n".join(analysis_lines)
-        return False
+                errors_found.append(msg)
+            else:
+                return False
     
     # Step 3: Check center pieces
     centers = [
@@ -129,9 +142,9 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
         if debug:
             print(f"❌ {msg}")
         if show_analysis:
-            analysis_lines.append(msg)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(msg)
+        else:
+            return False
     
     # Step 4: Extract and validate edges
     edges = extract_edges(cube_state)
@@ -144,9 +157,9 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
     edges_valid, edge_error = validate_edges(edges, debug, show_analysis)
     if not edges_valid:
         if show_analysis:
-            analysis_lines.append(edge_error)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(edge_error)
+        else:
+            return False
     
     # Step 5: Extract and validate corners
     corners = extract_corners(cube_state)
@@ -159,41 +172,50 @@ def validate_cube_state(cube_state, debug=False, show_analysis=False):
     corners_valid, corner_error = validate_corners(corners, debug, show_analysis)
     if not corners_valid:
         if show_analysis:
-            analysis_lines.append(corner_error)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(corner_error)
+        else:
+            return False
     
     # Step 6: Check corner rotations (sum must be divisible by 3)
     corner_rotation_valid, rotation_error = validate_corner_rotations(cube_state, debug, show_analysis)
     if not corner_rotation_valid:
         if show_analysis:
-            analysis_lines.append(rotation_error)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(rotation_error)
+        else:
+            return False
     
     # Step 7: Check edge parity (must be even)
     edge_parity_valid, parity_error = validate_edge_parity(cube_state, debug, show_analysis)
     if not edge_parity_valid:
         if show_analysis:
-            analysis_lines.append(parity_error)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(parity_error)
+        else:
+            return False
     
     # Step 8: Check permutation parity (total swaps must be even)
     permutation_valid, permutation_error = validate_permutation_parity(cube_state, debug, show_analysis)
     if not permutation_valid:
         if show_analysis:
-            analysis_lines.append(permutation_error)
-            return False, "\n".join(analysis_lines)
-        return False
+            errors_found.append(permutation_error)
+        else:
+            return False
+    
+    # Determine final result
+    is_valid = len(errors_found) == 0
     
     if debug:
-        print(f"\n✅ CUBE IS VALID!")
-    if show_analysis:
-        analysis_lines.append("Cube is valid")
-        return True, "\n".join(analysis_lines)
+        if is_valid:
+            print(f"\n✅ CUBE IS VALID!")
+        else:
+            print(f"\n❌ CUBE IS INVALID!")
     
-    return True
+    if show_analysis:
+        if is_valid:
+            return True, "Cube is valid"
+        else:
+            return False, "; ".join(errors_found)
+    
+    return is_valid
 
 
 def extract_edges(cube_state):
