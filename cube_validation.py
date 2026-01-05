@@ -688,13 +688,13 @@ def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
         # White face corners (positions 0, 2, 6, 8)
         [(0, "White"), (36, "Orange"), (47, "Blue")],      # White-Orange-Blue
         [(2, "White"), (45, "Blue"), (11, "Red")],         # White-Blue-Red
-        [(6, "White"), (38, "Orange"), (18, "Green")],     # White-Orange-Green
-        [(8, "White"), (20, "Green"), (9, "Red")],         # White-Green-Red
+        [(6, "White"), (18, "Green"), (38, "Orange")],     # White-Green-Orange
+        [(8, "White"), (9, "Red"), (20, "Green")],         # White-Red-Green
         
         # Yellow face corners (positions 27, 29, 33, 35)
-        [(27, "Yellow"), (24, "Green"), (44, "Orange")],   # Yellow-Green-Orange
+        [(27, "Yellow"), (44, "Orange"), (24, "Green")],   # Yellow-Orange-Green
         [(29, "Yellow"), (26, "Green"), (15, "Red")],      # Yellow-Green-Red
-        [(33, "Yellow"), (42, "Orange"), (53, "Blue")],    # Yellow-Orange-Blue
+        [(33, "Yellow"), (53, "Blue"), (42, "Orange")],    # Yellow-Blue-Orange
         [(35, "Yellow"), (17, "Red"), (51, "Blue")],       # Yellow-Red-Blue
     ]
     
