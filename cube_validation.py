@@ -660,8 +660,8 @@ def fix_cube_complete(cube_state):
 def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
     """
     Validate corner rotations using the white/yellow face method.
-    Also validates that the other two colors in each corner match the expected
-    corner configuration (not just any valid corner colors).
+    First identifies which corner piece is at each position, then validates
+    that it's the correct piece in the correct orientation.
     
     Each corner has a rotation value:
     - 0: White or yellow square is on the white or yellow face (correct orientation)
@@ -688,58 +688,79 @@ def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
         # White face corners (positions 0, 2, 6, 8)
         [(0, "White"), (36, "Orange"), (47, "Blue")],      # White-Orange-Blue
         [(2, "White"), (45, "Blue"), (11, "Red")],         # White-Blue-Red
-        [(6, "White"), (18, "Green"), (38, "Orange")],     # White-Green-Orange
-        [(8, "White"), (9, "Red"), (20, "Green")],         # White-Red-Green
+        [(6, "White"), (38, "Orange"), (18, "Green")],     # White-Orange-Green
+        [(8, "White"), (20, "Green"), (9, "Red")],         # White-Green-Red
         
         # Yellow face corners (positions 27, 29, 33, 35)
-        [(27, "Yellow"), (44, "Orange"), (24, "Green")],   # Yellow-Orange-Green
+        [(27, "Yellow"), (24, "Green"), (44, "Orange")],   # Yellow-Green-Orange
         [(29, "Yellow"), (26, "Green"), (15, "Red")],      # Yellow-Green-Red
-        [(33, "Yellow"), (53, "Blue"), (42, "Orange")],    # Yellow-Blue-Orange
+        [(33, "Yellow"), (42, "Orange"), (53, "Blue")],    # Yellow-Orange-Blue
         [(35, "Yellow"), (17, "Red"), (51, "Blue")],       # Yellow-Red-Blue
     ]
     
+    # Create a lookup of expected corners by their color set
+    # This allows us to identify which corner piece we're looking at
+    expected_corners_lookup = {}
+    for idx, corner in enumerate(corners_positions):
+        expected_colors = tuple(sorted([expected for _, expected in corner]))
+        expected_corners_lookup[expected_colors] = (idx, corner)
+    
     rotation_sum = 0
     
-    for i, corner in enumerate(corners_positions):
+    for position_idx, corner_positions in enumerate(corners_positions):
         # Get the actual colors at these positions
-        colors = [cube_state[pos] for pos, _ in corner]
-        expected_colors = [expected for _, expected in corner]
+        actual_colors = [cube_state[pos] for pos, _ in corner_positions]
+        expected_colors_ordered = [expected for _, expected in corner_positions]
         
         # Find where white or yellow is located
         white_yellow_pos = None
-        for j, color in enumerate(colors):
+        for j, color in enumerate(actual_colors):
             if color in ["White", "Yellow"]:
                 white_yellow_pos = j
                 break
         
         if white_yellow_pos is None:
-            msg = f"Corner {i+1} missing white/yellow"
+            msg = f"Corner {position_idx+1} missing white/yellow"
             if debug:
                 print(f"  ❌ {msg}")
             if show_analysis:
                 return False, msg
             return False, None
         
-        # NEW: Validate that the corner colors match expected configuration
+        # Identify which corner piece this is based on its colors
+        actual_color_set = tuple(sorted(actual_colors))
+        
+        if actual_color_set not in expected_corners_lookup:
+            # This shouldn't happen if validate_corners passed, but check anyway
+            msg = f"Corner {position_idx+1} has invalid color combination: {actual_colors}"
+            if debug:
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
+        
+        # Get which corner piece this should be
+        expected_corner_idx, expected_corner_def = expected_corners_lookup[actual_color_set]
+        expected_colors_for_piece = [expected for _, expected in expected_corner_def]
+        
+        # Check if this corner piece is in the correct position
+        if expected_corner_idx != position_idx:
+            # Corner piece is in wrong position
+            msg = f"Corner {position_idx+1} has wrong piece: found {actual_colors} (belongs at position {expected_corner_idx+1})"
+            if debug:
+                print(f"  ❌ {msg}")
+            if show_analysis:
+                return False, msg
+            return False, None
+        
+        # Now validate that the corner is oriented correctly
         # Rotate the actual colors to align white/yellow to position 0
-        rotated_colors = colors[white_yellow_pos:] + colors[:white_yellow_pos]
+        rotated_colors = actual_colors[white_yellow_pos:] + actual_colors[:white_yellow_pos]
         
-        # Check if rotated colors match expected colors
-        # (The corner piece should have the same 3 colors in the same cyclic order)
-        if set(rotated_colors) != set(expected_colors):
-            # Colors don't match - this corner has wrong colors
-            msg = f"Corner {i+1} has wrong colors: {colors} (expected {expected_colors})"
-            if debug:
-                print(f"  ❌ {msg}")
-            if show_analysis:
-                return False, msg
-            return False, None
-        
-        # Check if the non-white/yellow colors are in correct cyclic order
-        # After rotation, colors should match expected order
-        if rotated_colors != expected_colors:
-            # Colors are correct but in wrong order (swapped)
-            msg = f"Corner {i+1} colors swapped: {colors} (expected order: {expected_colors})"
+        # Check if the rotated colors match the expected order for this position
+        if rotated_colors != expected_colors_ordered:
+            # Colors are in wrong order (twisted/flipped)
+            msg = f"Corner {position_idx+1} colors in wrong order: {actual_colors} (expected {expected_colors_ordered})"
             if debug:
                 print(f"  ❌ {msg}")
             if show_analysis:
@@ -761,7 +782,7 @@ def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
         
         if debug:
             rotation_name = ["correct", "clockwise", "counter-clockwise"][white_yellow_pos]
-            print(f"  Corner {i+1}: {colors} - {rotation_name} (rotation: {rotation})")
+            print(f"  Corner {position_idx+1}: {actual_colors} - {rotation_name} (rotation: {rotation})")
     
     is_valid = (rotation_sum % 3) == 0
     

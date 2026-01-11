@@ -59,7 +59,7 @@ is_valid, analysis = validate_cube_state(swapped_corner_cube, debug=False, show_
 print(f"Valid: {is_valid}")
 print(f"Analysis: {analysis}")
 assert is_valid == False, "Cube with swapped corners should fail"
-assert "swapped" in analysis.lower() or "wrong colors" in analysis.lower(), "Should mention swapped/wrong colors"
+assert "wrong order" in analysis.lower() or "wrong colors" in analysis.lower() or "wrong piece" in analysis.lower(), "Should mention corner issue"
 print("✅ PASS")
 
 # Test 3: Another swapped corner scenario
