@@ -687,13 +687,13 @@ def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
         # White face corners (positions 0, 2, 6, 8)
         [0, 36, 47],      # Top-left corner
         [2, 45, 11],      # Top-right corner
-        [6, 38, 18],      # Bottom-left corner
-        [8, 20, 9],       # Bottom-right corner
+        [6, 18, 38],      # Bottom-left corner
+        [8, 9, 20],       # Bottom-right corner
 
         # Yellow face corners (positions 27, 29, 33, 35)
-        [27, 24, 44],     # Top-left corner
+        [27, 44, 24],     # Top-left corner
         [29, 26, 15],     # Top-right corner
-        [33, 42, 53],     # Bottom-left corner
+        [33, 53, 42],     # Bottom-left corner
         [35, 17, 51],     # Bottom-right corner
     ]
 
@@ -757,13 +757,20 @@ def validate_corner_rotations(cube_state, debug=False, show_analysis=False):
 
 def validate_edge_parity(cube_state, debug=False, show_analysis=False):
     """
-    Validate edge parity by checking edge orientations.
+    Validate edge parity using the simplified key position method.
     
-    For each edge, check if it's correctly oriented:
-    - Edges with White/Yellow: White or Yellow should be on U/D face (first position)
-    - Edges with Red/Orange (no W/Y): Red or Orange should be on L/R face
+    Check 12 key positions on the cube:
+    - 4 edge squares on Up face (positions 1, 3, 5, 7)
+    - 4 edge squares on Down face (positions 28, 30, 32, 34)
+    - 2 edge squares on middle row of Front face (positions 21, 23)
+    - 2 edge squares on middle row of Back face (positions 48, 50)
     
-    Count flipped edges. Must be even for valid parity.
+    Count squares that meet these criteria:
+    1. Any white or yellow square in key positions
+    2. Any red or orange square in key positions that is NOT part of an edge
+       with white or yellow
+    
+    If count is even, edge parity is valid.
     
     Args:
         cube_state: List of 54 color names
@@ -776,64 +783,88 @@ def validate_edge_parity(cube_state, debug=False, show_analysis=False):
     if debug:
         print(f"\nEdge parity check:")
     
-    # Extract edges using existing function - matches extract_edges() order
-    edges = extract_edges(cube_state)
-    
-    # Define orientation rules matching extract_edges order
-    # Format: (edge_index, pos1, pos2, description, check_type)
-    edge_rules = [
-        # Top layer (White face) - White/Yellow should be on first position
-        (0, 1, 46, "White-Blue", "UD"),
-        (1, 3, 37, "White-Orange", "UD"),
-        (2, 5, 10, "White-Red", "UD"),
-        (3, 7, 19, "White-Green", "UD"),
+    # Define the 12 key positions to check
+    # Format: (position, face_name, edge_description)
+    key_positions = [
+        # Up face edges (White face)
+        (1, "Up", "top"),
+        (3, "Up", "left"),
+        (5, "Up", "right"),
+        (7, "Up", "bottom"),
         
-        # Middle layer - Red/Orange should be on Red/Orange face
-        (4, 12, 23, "Red-Green", "LR"),
-        (5, 50, 39, "Blue-Orange", "LR"),
-        (6, 21, 41, "Green-Orange", "LR"),
-        (7, 14, 48, "Red-Blue", "LR"),
+        # Down face edges (Yellow face)
+        (28, "Down", "top"),
+        (30, "Down", "left"),
+        (32, "Down", "right"),
+        (34, "Down", "bottom"),
         
-        # Bottom layer (Yellow face) - White/Yellow should be on first position
-        (8, 28, 25, "Yellow-Green", "UD"),
-        (9, 30, 43, "Yellow-Orange", "UD"),
-        (10, 32, 16, "Yellow-Red", "UD"),
-        (11, 34, 52, "Yellow-Blue", "UD"),
+        # Front face middle edges (Green face)
+        (21, "Front", "left"),
+        (23, "Front", "right"),
+        
+        # Back face middle edges (Blue face)
+        (48, "Back", "left"),
+        (50, "Back", "right"),
     ]
     
-    flipped_edges = 0
+    # Map positions to their edge partner positions
+    # This tells us which other position is part of the same edge piece
+    edge_partners = {
+        1: 46,   # Up-top connects to Back-top
+        3: 37,   # Up-left connects to Orange-top
+        5: 10,   # Up-right connects to Red-top
+        7: 19,   # Up-bottom connects to Front-top
+        
+        28: 25,  # Down-top connects to Front-bottom
+        30: 43,  # Down-left connects to Orange-bottom
+        32: 16,  # Down-right connects to Red-bottom
+        34: 52,  # Down-bottom connects to Back-bottom
+        
+        21: 41,  # Front-left connects to Orange-right
+        23: 12,  # Front-right connects to Red-left
+        
+        48: 14,  # Back-left connects to Red-right
+        50: 39,  # Back-right connects to Orange-left
+    }
     
-    for edge_idx, pos1, pos2, desc, check_type in edge_rules:
-        color1, color2 = edges[edge_idx]
-        is_correct = False
+    count = 0
+    counted_positions = []
+    
+    for pos, face, edge_desc in key_positions:
+        color = cube_state[pos]
+        partner_pos = edge_partners[pos]
+        partner_color = cube_state[partner_pos]
         
-        if check_type == "UD":
-            # White or Yellow should be on U/D face (first position)
-            if color1 in ["White", "Yellow"]:
-                is_correct = True
-        elif check_type == "LR":
-            # Red or Orange should be on L/R face
-            if pos1 in [12, 14, 16] and color1 == "Red":  # Red face
-                is_correct = True
-            elif pos1 in [39, 41, 43] and color1 == "Orange":  # Orange face
-                is_correct = True
-            elif pos2 in [12, 14, 16] and color2 == "Red":  # Red face
-                is_correct = True
-            elif pos2 in [39, 41, 43] and color2 == "Orange":  # Orange face
-                is_correct = True
+        should_count = False
+        reason = ""
         
-        if not is_correct:
-            flipped_edges += 1
-            if debug:
-                print(f"  ✗ Edge {edge_idx+1} ({desc}): {color1}-{color2} - FLIPPED")
+        # Rule 1: Any white or yellow square counts
+        if color in ["White", "Yellow"]:
+            should_count = True
+            reason = f"{color} (always counts)"
+        
+        # Rule 2: Red or orange counts if NOT connected to white/yellow
+        elif color in ["Red", "Orange"]:
+            if partner_color not in ["White", "Yellow"]:
+                should_count = True
+                reason = f"{color} (not with W/Y)"
+            else:
+                reason = f"{color} (with {partner_color}, doesn't count)"
         else:
-            if debug:
-                print(f"  ✓ Edge {edge_idx+1} ({desc}): {color1}-{color2} - correct")
+            reason = f"{color} (not W/Y/R/O, doesn't count)"
+        
+        if should_count:
+            count += 1
+            counted_positions.append((pos, face, edge_desc, color, reason))
+        
+        if debug:
+            status = "✓" if should_count else "✗"
+            print(f"  {status} Position {pos:2d} ({face:5s} {edge_desc:6s}): {color:6s} + {partner_color:6s} - {reason}")
     
-    is_valid = (flipped_edges % 2) == 0
+    is_valid = (count % 2) == 0
     
     if debug:
-        print(f"  Flipped edges: {flipped_edges}")
+        print(f"\n  Total count: {count}")
         print(f"  Parity: {'even' if is_valid else 'odd'}")
         if is_valid:
             print(f"  ✅ Edge parity is valid (even)")
@@ -841,7 +872,7 @@ def validate_edge_parity(cube_state, debug=False, show_analysis=False):
             print(f"  ❌ Edge parity is invalid (must be even)")
     
     if not is_valid:
-        msg = f"Edge parity invalid: {flipped_edges} flipped edges (must be even)"
+        msg = f"Edge parity invalid: {count} key positions (must be even)"
         if show_analysis:
             return False, msg
         return False, None
@@ -981,3 +1012,24 @@ def count_swaps(pieces):
             pieces[pos], pieces[dst] = pieces[dst], pieces[pos]
             swaps += 1
     return swaps
+
+# debug stuff, please ignore
+
+def cubestring_to_cube(cubestring):
+    cube_state = []
+    mapping ={}
+    for i,j in COLOR_TO_CUBE.items():
+        mapping[j]=i
+    for i in cubestring:
+        cube_state.append(mapping[i])
+    return cube_state
+
+
+if __name__== "__main__":
+    cube_string=cubestring_to_cube(input("ENTER: ").strip())
+    print(validate_cube_state(cube_string,debug=True,show_analysis=True))
+
+
+#Errors
+#BWO
+#BRW
